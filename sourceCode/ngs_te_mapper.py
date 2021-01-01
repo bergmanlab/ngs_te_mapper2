@@ -53,7 +53,7 @@ def get_args():
         required=False,
     )
     parser.add_argument(
-        "-m", "--mapper", type=str, help="mapper (default = minimap2) ", required=False
+        "-m", "--mapper", type=str, help="mapper (default = bwa) ", required=False
     )
     parser.add_argument(
         "-t", "--thread", type=int, help="thread (default = 1) ", required=False
@@ -71,7 +71,7 @@ def get_args():
         os.mkdir(args.out)
 
     if args.mapper is None:
-        args.mapper = "minimap2"
+        args.mapper = "bwa"
 
     if args.thread is None:
         args.thread = 1
@@ -95,43 +95,27 @@ def main():
         for read in raw_reads:
             subprocess.call(["gunzip", "-c", read], stdout=output)
 
-    ## create masked augmented reference genome
-    ref_new = "/scratch/sh60271/ngs2/data/dm6.cov.fasta.masked.aug"
-    ref_rm = "/scratch/sh60271/ngs2/data/dm6.rm.fasta"
-    # subprocess.call(["bwa", "index", ref])
-    # subprocess.call(["bwa", "index", ref_new])
-    
-    # repeatmasker_dir = os.path.join(args.out, "RM")
-    # mkdir(repeatmasker_dir)
-    # try:
-    #     # subprocess.call(
-    #     #     [
-    #     #         "RepeatMasker",
-    #     #         "-dir",
-    #     #         repeatmasker_dir,
-    #     #         "-gff",
-    #     #         "-s",
-    #     #         "-nolow",
-    #     #         "-no_is",
-    #     #         "-xsmall",
-    #     #         "-e",
-    #     #         "ncbi",
-    #     #         "-lib",
-    #     #         args.library,
-    #     #         "-pa",
-    #     #         str(args.thread),
-    #     #         args.reference,
-    #     #     ]
-    #     # )
-    #     ref_repeatmasked = os.path.join(
-    #         repeatmasker_dir, os.path.basename(args.reference) + ".masked"
-    #     )
-    #     print(ref_repeatmasked)
-    #     open(ref_repeatmasked, "r")
-    # except Exception as e:
-    #     print(e)
-    #     print("Repeatmasking ref failed, exiting...")
-    #     sys.exit(1)
+    # ## create masked augmented reference genome
+    # ref_new = "/scratch/sh60271/ngs2/data/dm6.cov.fasta.masked.aug"
+    # ref_rm = "/scratch/sh60271/ngs2/data/dm6.rm.fasta"
+
+
+    # prepare modified reference genome
+    if args.ngs_te_mapper:
+        augment = False
+    else:
+        augment = True
+    rm_dir = os.path.join(args.out, "repeatmask")
+    mkdir(rm_dir)
+    ref_modified = repeatmask(
+        ref=args.reference,
+        library=args.library,
+        outdir=rm_dir,
+        thread=args.thread,
+        augment=False,
+    )
+    if args.mapper == "bwa":
+        subprocess.call(["bwa", "index", ref_modified])
 
     # process families
     families = []

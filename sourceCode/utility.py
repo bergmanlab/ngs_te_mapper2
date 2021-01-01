@@ -252,6 +252,41 @@ def subset_bam_ids(bam_in, bam_out, contigs, ids, thread):
         subprocess.call(command, shell=True, stdout=output)
     sort_index_bam(bam_tmp, bam_out, thread)
 
+def repeatmask(ref, library, outdir, thread, augment=False):
+    try:
+        subprocess.call(
+            [
+                "RepeatMasker",
+                "-dir",
+                outdir,
+                "-gff",
+                "-s",
+                "-nolow",
+                "-no_is",
+                "-xsmall",
+                "-e",
+                "ncbi",
+                "-lib",
+                library,
+                "-pa",
+                str(thread),
+                ref,
+            ]
+        )
+        ref_rm = os.path.join(
+            outdir, os.path.basename(ref) + ".masked"
+        )
+        open(ref_repeatmasked, "r")
+    except Exception as e:
+        print(e)
+        print("Repeatmasking failed, exiting...")
+        sys.exit(1)
+    if augment:
+        ref_rm_aug = ref_rm + '.aug'
+        subprocess.call(["cat", ref_rm, library], stdout=output)
+        return ref_rm_aug
+    else:
+        return ref_rm
 
 def get_family_bam(bam_in, bam_out, family, thread):
     # filter bam file for reads partially mapped to a given TE family
