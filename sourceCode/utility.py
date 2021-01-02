@@ -460,12 +460,13 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max=20):
                     ):
                         start = entry[1]
                         end = entry[6]
+                        strand = "-"
                     else:
                         start = entry[5]
                         end = entry[2]
+                        strand = "+"
                     score = (float(entry[3]) + float(entry[7])) / 2
                     score = "{:.2f}".format(score)
-                    strand = "."
                     out_line = "\t".join(
                         [chr, str(start), str(end), family, str(score), strand]
                     )
