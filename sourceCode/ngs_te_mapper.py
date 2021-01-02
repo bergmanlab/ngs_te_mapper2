@@ -7,13 +7,15 @@ import time
 import logging
 import subprocess
 from glob import glob
-from multiprocessing import Process, Pool
+from multiprocessing import Pool
 from utility import (
     parse_input,
+    repeatmask,
     make_bam,
     get_family_bed,
     merge_bed,
     mkdir,
+    format_time,
 )
 
 """
@@ -95,7 +97,7 @@ def main():
     datestr = "%m/%d/%Y %H:%M:%S"
     logging.basicConfig(
         level=logging.DEBUG,
-        filename=os.path.join(args.out, "TELR.log"),
+        filename=os.path.join(args.out, "ngs_te_mapper.log"),
         filemode="w",
         format=formatstr,
         datefmt=datestr,
@@ -110,11 +112,14 @@ def main():
     # Parse input
     sample_name = os.path.basename(args.read).replace(".fastq.gz", "")
     fastq, library, ref = parse_input(
-        input_reads=args.reads,
+        input_read=args.read,
         input_library=args.library,
         input_reference=args.reference,
         out_dir=tmp_dir,
     )
+    print(fastq)
+    print(library)
+    print(ref)
 
     # prepare modified reference genome
     if args.ngs_te_mapper:
@@ -123,6 +128,7 @@ def main():
         augment = True
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
+    ref_modified = rm_dir + "/" + "dm6.fasta.masked"
     ref_modified = repeatmask(
         ref=ref,
         library=library,
@@ -132,6 +138,7 @@ def main():
     )
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_modified])
+        subprocess.call(["bwa", "index", library])
 
     # get all TE families
     families = []
@@ -152,7 +159,9 @@ def main():
     contigs = " ".join(contigs)
 
     # step one: align read to TE library or masked augmented ref
-    print("align reads to TE library..")
+    print("Align reads to TE library..")
+    logging.info("Start alignment...")
+    start_time = time.time()
     if args.ngs_te_mapper:
         # align reads to TE library (single end mode)
         bam = tmp_dir + "/" + sample_name + ".bam"
@@ -161,18 +170,22 @@ def main():
     else:
         # align reads to masked augmented reference (single end mode)
         bam = tmp_dir + "/" + sample_name + ".bam"
-        make_bam(fastq, ref_new, str(args.thread), bam, args.mapper)
+        make_bam(fastq, ref_modified, str(args.thread), bam, args.mapper)
         os.remove(fastq)
+    proc_time = time.time() - start_time
+    logging.info("Alignment finished in " + format_time(proc_time))
 
     # use samtools to separate bam into family bam (single thread)
-    print("detection by family...")
+    print("Detection by family...")
+    family_dir = os.path.join(tmp_dir, "family-specific")
+    mkdir(family_dir)
     family_arguments = []
     for family in families:
         argument = [
             family,
             bam,
-            ref_rm,
-            tmp_dir,
+            ref_modified,
+            family_dir,
             args.mapper,
             contigs,
             args.ngs_te_mapper,
@@ -191,12 +204,12 @@ def main():
     # merge non ref bed files
     final_bed = args.out + "/" + sample_name + ".nonref.bed"
     pattern = "/*/*nonref.bed"
-    bed_files = glob(tmp_dir + pattern, recursive=True)
+    bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
     proc_time = time.time() - start_time
-    print("ngs_te_mapper2 finished!")
-    logging.info("ngs_te_mapper2 finished in " + format_time(proc_time))
+    print("ngs_te_mapper finished!")
+    logging.info("ngs_te_mapper finished in " + format_time(proc_time))
 
 
 main()

@@ -1,17 +1,26 @@
 #!/usr/bin/env python3
 
 import sys
-import argparse
 import os
 import subprocess
-from Bio import SeqIO
-from glob import glob
+import logging
 import re
+from datetime import datetime, timedelta
 import pysam
 
 """
-This script provides utility functions that are used by the main TE detection pipeline for multiplexed TE-NGS data
+This script provides utility functions that are used by ngs_te_mapper program
 """
+
+
+def format_time(time):
+    d = datetime(1, 1, 1) + timedelta(seconds=time)
+    if d.hour == 0 and d.minute == 0:
+        return "%d seconds" % (d.second)
+    elif d.hour == 0 and d.minute != 0:
+        return "%d minutes %d seconds" % (d.minute, d.second)
+    else:
+        return "%d hours %d minutes %d seconds" % (d.hour, d.minute, d.second)
 
 
 def create_soft_link(input, out_dir):
@@ -41,8 +50,8 @@ def parse_input(input_read, input_library, input_reference, out_dir):
     ref = create_soft_link(input_reference, out_dir)
 
     # unzip and merge input files, if muliple inputs were provided
-    if ".gz" in read:
-        fastq = read.replace(".gz", "")
+    if ".gz" in input_read:
+        fastq = out_dir + "/" + os.path.basename(input_read).replace(".gz", "")
         with open(fastq, "w") as output:
             subprocess.call(["gunzip", "-c", read], stdout=output)
     else:
@@ -312,7 +321,7 @@ def repeatmask(ref, library, outdir, thread, augment=False):
             ]
         )
         ref_rm = os.path.join(outdir, os.path.basename(ref) + ".masked")
-        open(ref_repeatmasked, "r")
+        open(ref_rm, "r")
     except Exception as e:
         print(e)
         print("Repeatmasking failed, exiting...")
