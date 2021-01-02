@@ -3,13 +3,13 @@
 import argparse
 import sys
 import os
+import time
+import logging
 import subprocess
 from glob import glob
 from multiprocessing import Process, Pool
-
-
-# from Bio import SeqIO
 from utility import (
+    parse_input,
     make_bam,
     get_family_bed,
     merge_bed,
@@ -17,7 +17,8 @@ from utility import (
 )
 
 """
-this script takes single end illumina data and output reference/non-reference TEs for input TE families
+Author: Shunhua Han <shhan@uga.edu>
+this script predicts non-reference TE insertions using single-end short read data
 """
 
 
@@ -27,7 +28,11 @@ def get_args():
     )
     ## required ##
     parser.add_argument(
-        "-f", "--reads", type=str, help="fastq.gz file or file list", required=True
+        "-f",
+        "--read",
+        type=str,
+        help="raw reads in fastq or fastq.gz format",
+        required=True,
     )
     parser.add_argument(
         "-l", "--library", type=str, help="TE concensus sequence", required=True
@@ -85,31 +90,42 @@ def get_args():
 def main():
     args = get_args()
 
-    # reads list
-    raw_reads = args.reads.replace(" ", "").split(",")
-    sample_name = os.path.basename(raw_reads[0]).replace(".fastq.gz", "")
+    # logging config
+    formatstr = "%(asctime)s: %(levelname)s: %(message)s"
+    datestr = "%m/%d/%Y %H:%M:%S"
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename=os.path.join(args.out, "TELR.log"),
+        filemode="w",
+        format=formatstr,
+        datefmt=datestr,
+    )
+    logging.info("CMD: " + " ".join(sys.argv))
+    start_time = time.time()
 
-    # unzip and merge input files, if muliple inputs were provided
-    fastq = args.out + "/" + sample_name + ".fastq"
-    with open(fastq, "w") as output:
-        for read in raw_reads:
-            subprocess.call(["gunzip", "-c", read], stdout=output)
+    # create directory for intermediate files
+    tmp_dir = os.path.join(args.out, "intermediate_files")
+    mkdir(tmp_dir)
 
-    # ## create masked augmented reference genome
-    # ref_new = "/scratch/sh60271/ngs2/data/dm6.cov.fasta.masked.aug"
-    # ref_rm = "/scratch/sh60271/ngs2/data/dm6.rm.fasta"
-
+    # Parse input
+    sample_name = os.path.basename(args.read).replace(".fastq.gz", "")
+    fastq, library, ref = parse_input(
+        input_reads=args.reads,
+        input_library=args.library,
+        input_reference=args.reference,
+        out_dir=tmp_dir,
+    )
 
     # prepare modified reference genome
     if args.ngs_te_mapper:
         augment = False
     else:
         augment = True
-    rm_dir = os.path.join(args.out, "repeatmask")
+    rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
     ref_modified = repeatmask(
-        ref=args.reference,
-        library=args.library,
+        ref=ref,
+        library=library,
         outdir=rm_dir,
         thread=args.thread,
         augment=False,
@@ -117,17 +133,17 @@ def main():
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_modified])
 
-    # process families
+    # get all TE families
     families = []
-    with open(args.library, "r") as input:
+    with open(library, "r") as input:
         for line in input:
             if ">" in line:
                 family = line.replace("\n", "").replace(">", "")
                 families.append(family)
 
-    # process reference
+    # get all contigs from reference
     contigs = []
-    with open(args.reference, "r") as input:
+    with open(ref, "r") as input:
         for line in input:
             if ">" in line:
                 contig = line.replace("\n", "").replace(">", "")
@@ -135,16 +151,16 @@ def main():
 
     contigs = " ".join(contigs)
 
-    # step one: read alignment to TE library or masked augmented ref
+    # step one: align read to TE library or masked augmented ref
     print("align reads to TE library..")
     if args.ngs_te_mapper:
         # align reads to TE library (single end mode)
-        bam = args.out + "/" + sample_name + ".bam"
-        make_bam(fastq, args.library, str(args.thread), bam, args.mapper)
+        bam = tmp_dir + "/" + sample_name + ".bam"
+        make_bam(fastq, library, str(args.thread), bam, args.mapper)
         os.remove(fastq)
     else:
         # align reads to masked augmented reference (single end mode)
-        bam = args.out + "/" + sample_name + ".bam"
+        bam = tmp_dir + "/" + sample_name + ".bam"
         make_bam(fastq, ref_new, str(args.thread), bam, args.mapper)
         os.remove(fastq)
 
@@ -156,7 +172,7 @@ def main():
             family,
             bam,
             ref_rm,
-            args.out,
+            tmp_dir,
             args.mapper,
             contigs,
             args.ngs_te_mapper,
@@ -175,8 +191,12 @@ def main():
     # merge non ref bed files
     final_bed = args.out + "/" + sample_name + ".nonref.bed"
     pattern = "/*/*nonref.bed"
-    bed_files = glob(args.out + pattern, recursive=True)
+    bed_files = glob(tmp_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
+
+    proc_time = time.time() - start_time
+    print("ngs_te_mapper2 finished!")
+    logging.info("ngs_te_mapper2 finished in " + format_time(proc_time))
 
 
 main()

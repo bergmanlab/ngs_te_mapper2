@@ -14,6 +14,43 @@ This script provides utility functions that are used by the main TE detection pi
 """
 
 
+def create_soft_link(input, out_dir):
+    link = os.path.join(out_dir, os.path.basename(input))
+    if not os.path.isabs(input):
+        input = os.path.abspath(input)
+    if os.path.islink(link):
+        os.remove(link)
+    try:
+        os.symlink(input, link)
+    except Exception as e:
+        print(e)
+        logging.exception("Create symbolic link for " + input + " failed")
+        sys.exit(1)
+    return link
+
+
+def parse_input(input_read, input_library, input_reference, out_dir):
+    """
+    Parse input files. If bam file is provided, convert to fasta format.
+    """
+    logging.info("Parsing input files...")
+
+    # create symbolic link for the input file
+    read = create_soft_link(input_read, out_dir)
+    library = create_soft_link(input_library, out_dir)
+    ref = create_soft_link(input_reference, out_dir)
+
+    # unzip and merge input files, if muliple inputs were provided
+    if ".gz" in read:
+        fastq = read.replace(".gz", "")
+        with open(fastq, "w") as output:
+            subprocess.call(["gunzip", "-c", read], stdout=output)
+    else:
+        fastq = read
+
+    return fastq, library, ref
+
+
 def bam2fastq(bam, fastq):
     """
     Convert bam to fastq.
@@ -252,6 +289,7 @@ def subset_bam_ids(bam_in, bam_out, contigs, ids, thread):
         subprocess.call(command, shell=True, stdout=output)
     sort_index_bam(bam_tmp, bam_out, thread)
 
+
 def repeatmask(ref, library, outdir, thread, augment=False):
     try:
         subprocess.call(
@@ -273,20 +311,19 @@ def repeatmask(ref, library, outdir, thread, augment=False):
                 ref,
             ]
         )
-        ref_rm = os.path.join(
-            outdir, os.path.basename(ref) + ".masked"
-        )
+        ref_rm = os.path.join(outdir, os.path.basename(ref) + ".masked")
         open(ref_repeatmasked, "r")
     except Exception as e:
         print(e)
         print("Repeatmasking failed, exiting...")
         sys.exit(1)
     if augment:
-        ref_rm_aug = ref_rm + '.aug'
+        ref_rm_aug = ref_rm + ".aug"
         subprocess.call(["cat", ref_rm, library], stdout=output)
         return ref_rm_aug
     else:
         return ref_rm
+
 
 def get_family_bam(bam_in, bam_out, family, thread):
     # filter bam file for reads partially mapped to a given TE family
@@ -375,8 +412,12 @@ def get_family_bed(args):
         make_bam(fq=ms_fq, ref=ref_rm, thread=1, bam=ms_bam, mapper=mapper)
     else:
         # subset BAM using read IDs using awk way
-        subset_bam_ids(bam_in=bam, bam_out=ms_bam, contigs=contigs, ids=ms_ids, thread=1)
-        subset_bam_ids(bam_in=bam, bam_out=sm_bam, contigs=contigs, ids=sm_ids, thread=1)
+        subset_bam_ids(
+            bam_in=bam, bam_out=ms_bam, contigs=contigs, ids=ms_ids, thread=1
+        )
+        subset_bam_ids(
+            bam_in=bam, bam_out=sm_bam, contigs=contigs, ids=sm_ids, thread=1
+        )
 
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
@@ -387,6 +428,7 @@ def get_family_bed(args):
 
     # get insertion candidate
     get_nonref(sm_bed, ms_bed, family_dir, family)
+
 
 def get_nonref(bed1, bed2, outdir, family, tsd_max=20):
     overlap = outdir + "/" + family + ".overlap.tsv"
