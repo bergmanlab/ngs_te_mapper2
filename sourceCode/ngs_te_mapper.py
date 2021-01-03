@@ -58,9 +58,9 @@ def get_args():
         required=False,
     )
     optional.add_argument(
-        "--ngs_te_mapper",
+        "--experiment",
         action="store_true",
-        help="If provided then reads will be mapped to TE in the first step (like in ngs_te_mapper)",
+        help="If provided then reads will be mapped to masked augmented reference in the first step (by default reads will be mapped to TE library)",
         required=False,
     )
     optional.add_argument(
@@ -159,10 +159,10 @@ def main():
     )
 
     # prepare modified reference genome
-    if args.ngs_te_mapper:
-        augment = False
-    else:
+    if args.experiment:
         augment = True
+    else:
+        augment = False
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
     ref_modified = rm_dir + "/" + "dm6.fasta.masked"
@@ -200,7 +200,7 @@ def main():
     print("Align reads to TE library..")
     logging.info("Start alignment...")
     start_time_align = time.time()
-    if args.ngs_te_mapper:
+    if not args.experiment:
         # align reads to TE library (single end mode)
         bam = tmp_dir + "/" + sample_name + ".bam"
         make_bam(fastq, library, str(args.thread), bam, args.mapper)
@@ -215,6 +215,8 @@ def main():
 
     # use samtools to separate bam into family bam (single thread)
     print("Detection by family...")
+    logging.info("Start insertion candidate search...")
+    start_time_candidate = time.time()
     family_dir = os.path.join(tmp_dir, "family-specific")
     mkdir(family_dir)
     family_arguments = []
@@ -227,7 +229,7 @@ def main():
             family_dir,
             args.mapper,
             contigs,
-            args.ngs_te_mapper,
+            args.experiment,
             args.tsd_max,
         ]
         family_arguments.append(argument)
@@ -240,6 +242,10 @@ def main():
         print(e)
         print("Family detection failed, exiting...")
         sys.exit(1)
+    proc_time_candidate = time.time() - start_time_candidate
+    logging.info(
+        "Insertion candidate search finished in " + format_time(proc_time_candidate)
+    )
 
     # merge non-ref bed files
     final_bed = args.out + "/" + sample_name + ".nonref.bed"

@@ -393,7 +393,7 @@ def get_family_bed(args):
     outdir = args[4]
     mapper = args[5]
     contigs = args[6]
-    ngs_te_mapper = args[7]
+    experiment = args[7]
     tsd_max = args[8]
 
     family_dir = os.path.join(outdir, family)
@@ -410,7 +410,7 @@ def get_family_bed(args):
     # step three: reads alignment to reference genome
     ms_bam = family_dir + "/" + family + ".ref.cigar.ms.bam"
     sm_bam = family_dir + "/" + family + ".ref.cigar.sm.bam"
-    if ngs_te_mapper:
+    if not experiment:
         cigar_fq = family_dir + "/" + family + ".cigar.fastq"
         bam2fastq(family_bam, cigar_fq)
         # need to realign to TE cigar reads to masked ref
