@@ -60,6 +60,9 @@ def get_args():
         required=False,
     )
     parser.add_argument(
+        "--tsd_max", type=str, help="maximum TSD (default = 20) ", required=False
+    )
+    parser.add_argument(
         "-m", "--mapper", type=str, help="mapper (default = bwa) ", required=False
     )
     parser.add_argument(
@@ -79,6 +82,9 @@ def get_args():
 
     if args.mapper is None:
         args.mapper = "bwa"
+
+    if args.tsd_max is None:
+        args.tsd_max = 20
 
     if args.thread is None:
         args.thread = 1
@@ -117,9 +123,6 @@ def main():
         input_reference=args.reference,
         out_dir=tmp_dir,
     )
-    print(fastq)
-    print(library)
-    print(ref)
 
     # prepare modified reference genome
     if args.ngs_te_mapper:
@@ -129,7 +132,8 @@ def main():
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
     ref_modified = rm_dir + "/" + "dm6.fasta.masked"
-    ref_modified = repeatmask(
+    te_gff = rm_dir + "/" + "dm6.fasta.out.gff"
+    ref_modified, te_gff = repeatmask(
         ref=ref,
         library=library,
         outdir=rm_dir,
@@ -185,10 +189,12 @@ def main():
             family,
             bam,
             ref_modified,
+            te_gff,
             family_dir,
             args.mapper,
             contigs,
             args.ngs_te_mapper,
+            args.tsd_max
         ]
         family_arguments.append(argument)
     try:
@@ -201,9 +207,15 @@ def main():
         print("Family detection failed, exiting...")
         sys.exit(1)
 
-    # merge non ref bed files
+    # merge non-ref bed files
     final_bed = args.out + "/" + sample_name + ".nonref.bed"
-    pattern = "/*/*nonref.bed"
+    pattern = "/*/*.nonref.bed"
+    bed_files = glob(family_dir + pattern, recursive=True)
+    merge_bed(bed_in=bed_files, bed_out=final_bed)
+
+    # merge ref bed files
+    final_bed = args.out + "/" + sample_name + ".ref.bed"
+    pattern = "/*/*.ref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 

@@ -321,6 +321,7 @@ def repeatmask(ref, library, outdir, thread, augment=False):
             ]
         )
         ref_rm = os.path.join(outdir, os.path.basename(ref) + ".masked")
+        gff = os.path.join(outdir, os.path.basename(ref) + ".out.gff")
         open(ref_rm, "r")
     except Exception as e:
         print(e)
@@ -329,9 +330,9 @@ def repeatmask(ref, library, outdir, thread, augment=False):
     if augment:
         ref_rm_aug = ref_rm + ".aug"
         subprocess.call(["cat", ref_rm, library], stdout=output)
-        return ref_rm_aug
+        return ref_rm_aug, gff
     else:
-        return ref_rm
+        return ref_rm, gff
 
 
 def get_family_bam(bam_in, bam_out, family, thread):
@@ -388,10 +389,12 @@ def get_family_bed(args):
     family = args[0]
     bam = args[1]
     ref_rm = args[2]
-    outdir = args[3]
-    mapper = args[4]
-    contigs = args[5]
-    ngs_te_mapper = args[6]
+    te_gff = args[3]
+    outdir = args[4]
+    mapper = args[5]
+    contigs = args[6]
+    ngs_te_mapper = args[7]
+    tsd_max = args[8]
 
     family_dir = os.path.join(outdir, family)
     mkdir(family_dir)
@@ -430,16 +433,17 @@ def get_family_bed(args):
 
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
-    get_cluster(sm_bam, sm_bed, cutoff=1, window=100)
+    get_cluster(sm_bam, sm_bed, cutoff=1, window=100) #TODO: add this option to args?
 
     ms_bed = family_dir + "/" + family + ".ms.bed"
     get_cluster(ms_bam, ms_bed, cutoff=1, window=100)
 
     # get insertion candidate
-    get_nonref(sm_bed, ms_bed, family_dir, family)
+    get_ref(sm_bed, ms_bed, te_gff, family_dir, family)
+    get_nonref(sm_bed, ms_bed, family_dir, family, tsd_max)
 
 
-def get_nonref(bed1, bed2, outdir, family, tsd_max=20):
+def get_nonref(bed1, bed2, outdir, family, tsd_max):
     overlap = outdir + "/" + family + ".overlap.tsv"
     if os.path.isfile(bed1) and os.path.isfile(bed2):
         with open(overlap, "w") as output:
@@ -471,25 +475,7 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max=20):
                         [chr, str(start), str(end), family, str(score), strand]
                     )
                     output.write(out_line + "\n")
-        # os.remove(overlap)
-
-        # if os.path.isfile(nonref):
-        #     nonref_norm = sample_dir + "/" + sample_name + "." + family + ".nonref.norm.bed"
-        #     with open(nonref_norm, "w") as output:
-        #         subprocess.call(["bedtools", "intersect", "-a", nonref, "-b", norm, "-u"], stdout=output)
-        #     nonref_norm_count = get_lines(nonref_norm)
-        # else:
-        #     nonref_norm_count = 0
-    # else:
-    #     nonref_count = 0
-    #     nonref_norm_count = 0
-
-    # with open(stats, "a") as output:
-    #     output.write(sample_name+"\t")
-    #     output.write(family+"\t")
-    #     output.write("non-ref\t")
-    #     output.write(str(nonref_count)+"\t")
-    #     output.write(str(nonref_norm_count)+"\n")
+        os.remove(overlap)
 
 
 def merge_bed(bed_in, bed_out):
@@ -507,36 +493,26 @@ def merge_bed(bed_in, bed_out):
         subprocess.call(["bedtools", "sort", "-i", bed_out_tmp], stdout=output)
     os.remove(bed_out_tmp)
 
-
-def get_ref_te(
-    bed1, bed2, norm, gff, family, stat, sample_dir, tmp_dir, sample_name, window=100
-):
-    # get reference count
-    ref_te = tmp_dir + "/" + family + ".ref.bed"
-    with open(ref_te, "w") as output, open(gff, "r") as input:
+def get_ref(bed1, bed2, gff, out_dir, family, window=50):
+    # get reference TE in bed format
+    ref_rm = out_dir + "/" + family + ".ref_rm.bed"
+    with open(ref_rm, "w") as output, open(gff, "r") as input:
         for line in input:
-            check_family = "Name=" + family + "{}"
+            check_family = "Motif:" + family
             if check_family in line:
                 entry = line.replace("\n", "").split("\t")
-                family = entry[8].split(";")[1]
-                family = re.sub("Name=", "", family)
-                family = re.sub("{}.*", "", family)
+                family = entry[8].split(" ")[1]
+                family = re.sub("\"Motif:", "", family)
+                family = re.sub("\"", "", family)
                 out_line = "\t".join(
                     [entry[0], entry[3], entry[4], family, ".", entry[6]]
                 )
                 output.write(out_line + "\n")
-    ref_count = get_lines(ref_te)
-    ref_te_norm = tmp_dir + "/" + family + ".ref.norm.bed"
-    with open(ref_te_norm, "w") as output:
-        subprocess.call(
-            ["bedtools", "intersect", "-a", ref_te, "-b", norm, "-u"], stdout=output
-        )
-
+    
     # calculate clusters that jointly support ref TEs (all, norm) with a percentage
-    ref_set1 = bed1.replace(".bed", ".ref.bed")
-    ref_set1_norm = bed1.replace(".bed", ".ref.norm.bed")
+    ref_sm = bed1.replace(".bed", ".ref.bed")
     if os.path.isfile(bed1):
-        with open(ref_set1, "w") as output:
+        with open(ref_sm, "w") as output:
             subprocess.call(
                 [
                     "bedtools",
@@ -544,39 +520,16 @@ def get_ref_te(
                     "-w",
                     str(window),
                     "-a",
-                    ref_te,
+                    ref_rm,
                     "-b",
                     bed1,
                     "-u",
                 ],
                 stdout=output,
             )
-        ref_set1_count = get_lines(ref_set1)
-
-        with open(ref_set1_norm, "w") as output:
-            subprocess.call(
-                [
-                    "bedtools",
-                    "window",
-                    "-w",
-                    str(window),
-                    "-a",
-                    ref_te_norm,
-                    "-b",
-                    bed1,
-                    "-u",
-                ],
-                stdout=output,
-            )
-        ref_set1_norm_count = get_lines(ref_set1_norm)
-    else:
-        ref_set1_count = 0
-        ref_set1_norm_count = 0
-
-    ref_set2 = bed2.replace(".bed", ".ref.bed")
-    ref_set2_norm = bed2.replace(".bed", ".ref.norm.bed")
+    ref_ms = bed2.replace(".bed", ".ref.bed")
     if os.path.isfile(bed2):
-        with open(ref_set2, "w") as output:
+        with open(ref_ms, "w") as output:
             subprocess.call(
                 [
                     "bedtools",
@@ -584,90 +537,20 @@ def get_ref_te(
                     "-w",
                     str(window),
                     "-a",
-                    ref_te,
+                    ref_rm,
                     "-b",
                     bed2,
                     "-u",
                 ],
                 stdout=output,
             )
-        ref_set2_count = get_lines(ref_set2)
-
-        with open(ref_set2_norm, "w") as output:
-            subprocess.call(
-                [
-                    "bedtools",
-                    "window",
-                    "-w",
-                    str(window),
-                    "-a",
-                    ref_te_norm,
-                    "-b",
-                    bed2,
-                    "-u",
-                ],
-                stdout=output,
-            )
-        ref_set2_norm_count = get_lines(ref_set2_norm)
-    else:
-        ref_set2_count = 0
-        ref_set2_norm_count = 0
-
-    # joinly support ref
-    if os.path.isfile(ref_set1) and os.path.isfile(ref_set2):
-        ref_both = tmp_dir + "/" + sample_name + "." + family + ".ref.bed"
+    if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
+        ref_both = out_dir + "/" + family + ".ref.bed"
         with open(ref_both, "w") as output:
             subprocess.call(
-                ["bedtools", "intersect", "-a", ref_set1, "-b", ref_set2, "-u"],
+                ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
                 stdout=output,
             )
-        ref_both_count = get_lines(ref_both)
-    else:
-        ref_both_count = 0
-
-    if os.path.isfile(ref_set1_norm) and os.path.isfile(ref_set2_norm):
-        ref_both_norm = sample_dir + "/" + sample_name + "." + family + ".ref.norm.bed"
-        with open(ref_both_norm, "w") as output:
-            subprocess.call(
-                [
-                    "bedtools",
-                    "intersect",
-                    "-a",
-                    ref_set1_norm,
-                    "-b",
-                    ref_set2_norm,
-                    "-u",
-                ],
-                stdout=output,
-            )
-        ref_both_norm_count = get_lines(ref_both_norm)
-    else:
-        ref_both_norm_count = 0
-
-    # write stats to summary
-    with open(stat, "a") as output:
-        output.write(sample_name + "\t")
-        output.write(family + "\t")
-        output.write("ref\t")
-        out_num = (
-            str(ref_both_count)
-            + "("
-            + str(ref_set1_count)
-            + ","
-            + str(ref_set2_count)
-            + ")"
-        )
-        output.write(out_num + "\t")
-        out_num = (
-            str(ref_both_norm_count)
-            + "("
-            + str(ref_set1_norm_count)
-            + ","
-            + str(ref_set2_norm_count)
-            + ")"
-        )
-        output.write(out_num + "\n")
-
-    # clean tmp files
-    os.remove(ref_te)
-    os.remove(ref_te_norm)
+    os.remove(ref_sm)
+    os.remove(ref_ms)
+    os.remove(ref_rm)
