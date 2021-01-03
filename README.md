@@ -77,17 +77,17 @@ conda activate ngs_te_mapper
 ## Command line help page
 ```
 usage: ngs_te_mapper.py [-h] -f READ -l LIBRARY -r REFERENCE [-n REGION]
-                        [-w WINDOW] [--ngs_te_mapper] [--tsd_max TSD_MAX]
-                        [-m MAPPER] [-t THREAD] [-o OUT]
+                        [-w WINDOW] [--experiment] [--tsd_max TSD_MAX]
+                        [-m MAPPER] [-t THREAD] [-o OUT] [-k]
 
 Script to detect non-reference TEs from single end short read data
 
 required arguments:
   -f READ, --read READ  raw reads in fastq or fastq.gz format
-  -r REFERENCE, --reference REFERENCE
-                        reference genome in fasta format
   -l LIBRARY, --library LIBRARY
                         TE concensus sequence
+  -r REFERENCE, --reference REFERENCE
+                        reference genome
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -96,14 +96,17 @@ optional arguments:
   -w WINDOW, --window WINDOW
                         merge window for identifying TE clusters (default =
                         100bp)
-  --ngs_te_mapper       If provided then reads will be mapped to TE in the
-                        first step (like in ngs_te_mapper)
+  --experiment          If provided then reads will be mapped to masked
+                        augmented reference in the first step (by default
+                        reads will be mapped to TE library)
   --tsd_max TSD_MAX     maximum TSD (default = 20)
   -m MAPPER, --mapper MAPPER
                         mapper (default = bwa)
   -t THREAD, --thread THREAD
                         thread (default = 1)
   -o OUT, --out OUT     output dir (default = '.')
+  -k, --keep_files      If provided then all intermediate files will be kept
+                        (default: remove intermediate files)
 ```
 
 # <a name="output"></a> Output
@@ -111,7 +114,7 @@ ngs_te_mapper outputs reference and non-referece TE insertion predictions in BED
 - `<sample>.nonref.bed`: non-reference TE insertion annotation predicted by ngs_te_mapper pipeline in BED format (0-based).
 - `<sample>.ref.bed`: reference TE insertion annotation predicted by ngs_te_mapper pipeline in BED format (0-based).
 
-## BED file output by ngs_te_mapper
+## TE insertion annotation in bed format
 ngs_te_mapper generates standard BED file `<sample>.nonref.bed` and `<sample>.ref.bed` that have detailed information for each reference and non-reference TE insertion.
 
 Column | Description
