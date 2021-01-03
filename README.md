@@ -2,9 +2,9 @@
 
 # Table of Contents
 * [Introduction](#intro)
-* [Installing ngs_te_mapper](#install)
-* [ngs_te_mapper Usage](#run)
-* [ngs_te_mapper Output](#output)
+* [Installation](#install)
+* [Usage](#run)
+* [Output](#output)
 * [Getting help](#help)
 * [License](#license)
 
@@ -108,11 +108,11 @@ optional arguments:
 
 # <a name="output"></a> Output
 ngs_te_mapper outputs reference and non-referece TE insertion predictions in BED format (0-based).
-- `<sample>.nonref.bed`: non-reference TE insertion annotation predicted by ngs_te_mapper pipeline in VCF format (0-based).
-- `<sample>.ref.bed`: reference TE insertion annotation predicted by ngs_te_mapper pipeline in VCF format (0-based).
+- `<sample>.nonref.bed`: non-reference TE insertion annotation predicted by ngs_te_mapper pipeline in BED format (0-based).
+- `<sample>.ref.bed`: reference TE insertion annotation predicted by ngs_te_mapper pipeline in BED format (0-based).
 
 ## BED file output by ngs_te_mapper
-ngs_te_mapper generates standard BED file `<sample>.nonref.bed` and `<sample>.ref.bed` that has detailed information for each non-reference TE insertion.
+ngs_te_mapper generates standard BED file `<sample>.nonref.bed` and `<sample>.ref.bed` that have detailed information for each reference and non-reference TE insertion.
 
 Column | Description
 -- | --
@@ -131,7 +131,7 @@ For each ngs_te_mapper run, a log file called `<sample>.log` is generated that r
 Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper/issues) if you have questions.
 
 # <a name="license"></a> License
-Copyright (c) 2020 Shunhua Han, Raquel Linheiro and Casey M. Bergman
+Copyright (c) 2020 Shunhua Han, Raquel Linheiro, Michael G. Nelson and Casey M. Bergman
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
