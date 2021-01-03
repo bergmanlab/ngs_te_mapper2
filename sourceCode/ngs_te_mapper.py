@@ -6,6 +6,7 @@ import os
 import time
 import logging
 import subprocess
+import shutil
 from glob import glob
 from multiprocessing import Pool
 from utility import (
@@ -20,7 +21,7 @@ from utility import (
 
 """
 Author: Shunhua Han <shhan@uga.edu>
-this script predicts non-reference TE insertions using single-end short read data
+This script predicts non-reference TE insertions using single-end short read data
 """
 
 
@@ -28,50 +29,83 @@ def get_args():
     parser = argparse.ArgumentParser(
         description="Script to detect non-reference TEs from single end short read data"
     )
+    optional = parser._action_groups.pop()
+    required = parser.add_argument_group("required arguments")
+
     ## required ##
-    parser.add_argument(
+    required.add_argument(
         "-f",
         "--read",
         type=str,
         help="raw reads in fastq or fastq.gz format",
         required=True,
     )
-    parser.add_argument(
+    required.add_argument(
         "-l", "--library", type=str, help="TE concensus sequence", required=True
     )
-    parser.add_argument(
+    required.add_argument(
         "-r", "--reference", type=str, help="reference genome", required=True
     )
     ## optional
-    parser.add_argument(
+    optional.add_argument(
         "-n", "--region", type=str, help="region to filter", required=False
     )
-    parser.add_argument(
+    optional.add_argument(
         "-w",
         "--window",
         type=int,
         help="merge window for identifying TE clusters (default = 100bp) ",
         required=False,
     )
-    parser.add_argument(
+    optional.add_argument(
         "--ngs_te_mapper",
         action="store_true",
         help="If provided then reads will be mapped to TE in the first step (like in ngs_te_mapper)",
         required=False,
     )
-    parser.add_argument(
+    optional.add_argument(
         "--tsd_max", type=str, help="maximum TSD (default = 20) ", required=False
     )
-    parser.add_argument(
+    optional.add_argument(
         "-m", "--mapper", type=str, help="mapper (default = bwa) ", required=False
     )
-    parser.add_argument(
+    optional.add_argument(
         "-t", "--thread", type=int, help="thread (default = 1) ", required=False
     )
-    parser.add_argument(
+    optional.add_argument(
         "-o", "--out", type=str, help="output dir (default = '.') ", required=False
     )
+    optional.add_argument(
+        "-k",
+        "--keep_files",
+        action="store_true",
+        help="If provided then all intermediate files will be kept (default: remove intermediate files)",
+        required=False,
+    )
+    parser._action_groups.append(optional)
     args = parser.parse_args()
+
+    # checks if in files exist
+    try:
+        test = open(args.read, "r")
+    except Exception as e:
+        print(e)
+        logging.exception("Can not open input file: " + args.read)
+        sys.exit(1)
+
+    try:
+        test = open(args.reference, "r")
+    except Exception as e:
+        print(e)
+        logging.exception("Can not open input file: " + args.reference)
+        sys.exit(1)
+
+    try:
+        test = open(args.library, "r")
+    except Exception as e:
+        print(e)
+        logging.exception("Can not open input file: " + args.library)
+        sys.exit(1)
 
     # sets up out dir variable
     if args.out is None:
@@ -109,7 +143,7 @@ def main():
         datefmt=datestr,
     )
     logging.info("CMD: " + " ".join(sys.argv))
-    start_time = time.time()
+    start_time_all = time.time()
 
     # create directory for intermediate files
     tmp_dir = os.path.join(args.out, "intermediate_files")
@@ -165,7 +199,7 @@ def main():
     # step one: align read to TE library or masked augmented ref
     print("Align reads to TE library..")
     logging.info("Start alignment...")
-    start_time = time.time()
+    start_time_align = time.time()
     if args.ngs_te_mapper:
         # align reads to TE library (single end mode)
         bam = tmp_dir + "/" + sample_name + ".bam"
@@ -176,8 +210,8 @@ def main():
         bam = tmp_dir + "/" + sample_name + ".bam"
         make_bam(fastq, ref_modified, str(args.thread), bam, args.mapper)
         os.remove(fastq)
-    proc_time = time.time() - start_time
-    logging.info("Alignment finished in " + format_time(proc_time))
+    proc_time_align = time.time() - start_time_align
+    logging.info("Alignment finished in " + format_time(proc_time_align))
 
     # use samtools to separate bam into family bam (single thread)
     print("Detection by family...")
@@ -194,7 +228,7 @@ def main():
             args.mapper,
             contigs,
             args.ngs_te_mapper,
-            args.tsd_max
+            args.tsd_max,
         ]
         family_arguments.append(argument)
     try:
@@ -219,9 +253,13 @@ def main():
     bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
-    proc_time = time.time() - start_time
+    # clean tmp files
+    if not args.keep_files:
+        shutil.rmtree(tmp_dir)
+
+    proc_time_all = time.time() - start_time_all
     print("ngs_te_mapper finished!")
-    logging.info("ngs_te_mapper finished in " + format_time(proc_time))
+    logging.info("ngs_te_mapper finished in " + format_time(proc_time_all))
 
 
 main()
