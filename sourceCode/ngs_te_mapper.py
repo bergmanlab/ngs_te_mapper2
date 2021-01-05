@@ -21,7 +21,7 @@ from utility import (
 
 """
 Author: Shunhua Han <shhan@uga.edu>
-This script predicts non-reference TE insertions using single-end short read data
+This script predicts reference and non-reference TE insertions using short read data
 """
 
 
@@ -35,9 +35,10 @@ def get_args():
     ## required ##
     required.add_argument(
         "-f",
-        "--read",
+        "--reads",
         type=str,
-        help="raw reads in fastq or fastq.gz format",
+        nargs="+",
+        help="raw reads in fastq or fastq.gz format, separated by comma",
         required=True,
     )
     required.add_argument(
@@ -54,7 +55,7 @@ def get_args():
         "-w",
         "--window",
         type=int,
-        help="merge window for identifying TE clusters (default = 100bp) ",
+        help="merge window for identifying TE clusters (default = 100) ",
         required=False,
     )
     optional.add_argument(
@@ -70,13 +71,20 @@ def get_args():
         "--gap_max", type=int, help="maximum gap size (default = 0) ", required=False
     )
     optional.add_argument(
-        "-m", "--mapper", type=str, help="mapper (default = bwa) ", required=False
+        "-m", "--mapper", type=str, help="read alignment program (default = 'bwa') ", required=False
     )
     optional.add_argument(
         "-t", "--thread", type=int, help="thread (default = 1) ", required=False
     )
     optional.add_argument(
         "-o", "--out", type=str, help="output dir (default = '.') ", required=False
+    )
+    parser.add_argument(
+        "-p",
+        "--prefix",
+        type=str,
+        help="output prefix",
+        required=False,
     )
     optional.add_argument(
         "-k",
@@ -89,13 +97,6 @@ def get_args():
     args = parser.parse_args()
 
     # checks if in files exist
-    try:
-        test = open(args.read, "r")
-    except Exception as e:
-        print(e)
-        logging.exception("Can not open input file: " + args.read)
-        sys.exit(1)
-
     try:
         test = open(args.reference, "r")
     except Exception as e:
@@ -156,13 +157,15 @@ def main():
     mkdir(tmp_dir)
 
     # Parse input
-    sample_name = os.path.basename(args.read).replace(".fastq.gz", "")
-    fastq, library, ref = parse_input(
-        input_read=args.read,
+    sample_prefix, fastq, library, ref = parse_input(
+        input_reads=args.reads,
         input_library=args.library,
         input_reference=args.reference,
         out_dir=tmp_dir,
     )
+
+    if args.prefix:
+        sample_prefix = args.prefix
 
     # prepare modified reference genome
     if args.experiment:
@@ -206,12 +209,12 @@ def main():
     start_time_align = time.time()
     if not args.experiment:
         # align reads to TE library (single end mode)
-        bam = tmp_dir + "/" + sample_name + ".bam"
+        bam = tmp_dir + "/" + sample_prefix + ".bam"
         make_bam(fastq, library, str(args.thread), bam, args.mapper)
         os.remove(fastq)
     else:
         # align reads to masked augmented reference (single end mode)
-        bam = tmp_dir + "/" + sample_name + ".bam"
+        bam = tmp_dir + "/" + sample_prefix + ".bam"
         make_bam(fastq, ref_modified, str(args.thread), bam, args.mapper)
         os.remove(fastq)
     proc_time_align = time.time() - start_time_align
@@ -253,14 +256,14 @@ def main():
     )
 
     # merge non-ref bed files
-    final_bed = args.out + "/" + sample_name + ".nonref.bed"
+    final_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
     # merge ref bed files
     if te_gff is not None:
-        final_bed = args.out + "/" + sample_name + ".ref.bed"
+        final_bed = args.out + "/" + sample_prefix + ".ref.bed"
         pattern = "/*/*.ref.bed"
         bed_files = glob(family_dir + pattern, recursive=True)
         merge_bed(bed_in=bed_files, bed_out=final_bed)

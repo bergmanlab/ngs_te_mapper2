@@ -81,14 +81,17 @@ python3 ../sourceCode/ngs_te_mapper.py -o test_output -f reads.fastq -r ref_1kb.
 # <a name="run"></a> Usage
 ## Command line help page
 ```
-usage: ngs_te_mapper.py [-h] -f READ -l LIBRARY -r REFERENCE [-n REGION]
-                        [-w WINDOW] [--experiment] [--tsd_max TSD_MAX]
-                        [-m MAPPER] [-t THREAD] [-o OUT] [-k]
+usage: ngs_te_mapper.py [-h] -f READS [READS ...] -l LIBRARY -r REFERENCE
+                        [-n REGION] [-w WINDOW] [--experiment]
+                        [--tsd_max TSD_MAX] [--gap_max GAP_MAX] [-m MAPPER]
+                        [-t THREAD] [-o OUT] [-p PREFIX] [-k]
 
 Script to detect non-reference TEs from single end short read data
 
 required arguments:
-  -f READ, --read READ  raw reads in fastq or fastq.gz format
+  -f READS [READS ...], --reads READS [READS ...]
+                        raw reads in fastq or fastq.gz format, separated by
+                        comma
   -l LIBRARY, --library LIBRARY
                         TE concensus sequence
   -r REFERENCE, --reference REFERENCE
@@ -100,16 +103,19 @@ optional arguments:
                         region to filter
   -w WINDOW, --window WINDOW
                         merge window for identifying TE clusters (default =
-                        100bp)
+                        100)
   --experiment          If provided then reads will be mapped to masked
                         augmented reference in the first step (by default
                         reads will be mapped to TE library)
-  --tsd_max TSD_MAX     maximum TSD (default = 20)
+  --tsd_max TSD_MAX     maximum TSD size (default = 20)
+  --gap_max GAP_MAX     maximum gap size (default = 0)
   -m MAPPER, --mapper MAPPER
-                        mapper (default = bwa)
+                        read alignment program (default = 'bwa')
   -t THREAD, --thread THREAD
                         thread (default = 1)
   -o OUT, --out OUT     output dir (default = '.')
+  -p PREFIX, --prefix PREFIX
+                        output prefix
   -k, --keep_files      If provided then all intermediate files will be kept
                         (default: remove intermediate files)
 ```
@@ -127,7 +133,7 @@ Column | Description
 chromosome | The chromosome name where the TE insertion occurred
 position | Starting breakpoint position of the TE insertions.
 end | Ending breakpoint position of the TE insertions.
-family | TE family and TSD info, separated by '|'.
+family | TE family and TSD info, separated by '\|'.
 support | Average coverage of reads supporting the TE insertion ('.' if insertion is reference).
 strand | Strand that TE insertion occurs
 

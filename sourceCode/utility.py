@@ -38,26 +38,51 @@ def create_soft_link(input, out_dir):
     return link
 
 
-def parse_input(input_read, input_library, input_reference, out_dir):
+def parse_input(input_reads, input_library, input_reference, out_dir):
     """
     Parse input files. If bam file is provided, convert to fasta format.
     """
     logging.info("Parsing input files...")
 
     # create symbolic link for the input file
-    read = create_soft_link(input_read, out_dir)
     library = create_soft_link(input_library, out_dir)
     ref = create_soft_link(input_reference, out_dir)
 
     # unzip and merge input files, if muliple inputs were provided
-    if ".gz" in input_read:
-        fastq = out_dir + "/" + os.path.basename(input_read).replace(".gz", "")
-        with open(fastq, "w") as output:
-            subprocess.call(["gunzip", "-c", read], stdout=output)
+    if len(input_reads) == 0:
+        logging.exception("no reads are provided, check your input files")
+        sys.exit(1)
+    reads_copy = []
+    for read in input_reads:
+        reads_copy.append(create_soft_link(read, out_dir))
+    if len(reads_copy) == 1:
+        read = reads_copy[0]
+        prefix = get_prefix(read)
+        if ".gz" in read:
+            fastq = read.replace(".gz", "")
+            with open(fastq, "w") as output:
+                subprocess.call(["gunzip", "-c", read], stdout=output)
+        else:
+            fastq = read
     else:
-        fastq = read
+        fastq = os.path.join([out_dir, "merged.fastq"])
+        prefix = get_prefix(reads_copy[0])
+        with open(fastq, "w") as output:
+            for read in reads_copy:
+                if ".gz" in read:
+                    subprocess.call(["gunzip", "-c", read], stdout=output)
+                else:
+                    subprocess.call(["cat", read], stdout=output)
 
-    return fastq, library, ref
+    return prefix, fastq, library, ref
+
+
+def get_prefix(path):
+    no_path = os.path.basename(path)
+    if no_path[-3:] == ".gz":
+        no_path = no_path[:-3]
+    no_ext = ".".join(no_path.split(".")[:-1])
+    return no_ext
 
 
 def bam2fastq(bam, fastq):
