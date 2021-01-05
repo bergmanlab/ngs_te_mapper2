@@ -322,7 +322,18 @@ def repeatmask(ref, library, outdir, thread, augment=False):
         )
         ref_rm = os.path.join(outdir, os.path.basename(ref) + ".masked")
         gff = os.path.join(outdir, os.path.basename(ref) + ".out.gff")
-        open(ref_rm, "r")
+        if not os.path.isfile(ref_rm):
+            ref_rm_out = os.path.join(outdir, os.path.basename(ref) + ".out")
+            with open(ref_rm_out, "r") as input:
+                for line in input:
+                    if "There were no repetitive sequences detected" in line:
+                        print("No repetitive sequences detected")
+                        ref_rm = ref
+                        gff = None
+                    else:
+                        raise Exception("Repeatmasking failed, exiting...")
+        else:
+            open(ref_rm, "r")
     except Exception as e:
         print(e)
         print("Repeatmasking failed, exiting...")
@@ -440,8 +451,9 @@ def get_family_bed(args):
     get_cluster(ms_bam, ms_bed, cutoff=1, window=100)
 
     # get insertion candidate
-    get_ref(sm_bed, ms_bed, te_gff, family_dir, family)
     get_nonref(sm_bed, ms_bed, family_dir, family, tsd_max, gap_max)
+    if te_gff is not None:
+        get_ref(sm_bed, ms_bed, te_gff, family_dir, family)
 
 
 def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):

@@ -171,8 +171,6 @@ def main():
         augment = False
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
-    ref_modified = rm_dir + "/" + "dm6.fasta.masked"
-    te_gff = rm_dir + "/" + "dm6.fasta.out.gff"
     ref_modified, te_gff = repeatmask(
         ref=ref,
         library=library,
@@ -261,10 +259,11 @@ def main():
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
     # merge ref bed files
-    final_bed = args.out + "/" + sample_name + ".ref.bed"
-    pattern = "/*/*.ref.bed"
-    bed_files = glob(family_dir + pattern, recursive=True)
-    merge_bed(bed_in=bed_files, bed_out=final_bed)
+    if te_gff is not None:
+        final_bed = args.out + "/" + sample_name + ".ref.bed"
+        pattern = "/*/*.ref.bed"
+        bed_files = glob(family_dir + pattern, recursive=True)
+        merge_bed(bed_in=bed_files, bed_out=final_bed)
 
     # clean tmp files
     if not args.keep_files:
