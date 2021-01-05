@@ -71,7 +71,12 @@ conda activate ngs_te_mapper
 - For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 
 ## Running ngs_te_mapper on test dataset
-##TODO
+- A test dataset is provided in the `test/` directory, you can test whether your ngs_te_mapper installation is successful by running ngs_te_mapper on this dataset, which should take less than one minute to finish on a single thread machine.
+```
+conda activate ngs_te_mapper
+cd test
+python3 ../sourceCode/ngs_te_mapper.py -o test_output -f reads.fastq -r ref_1kb.fasta -l library.fasta
+```
 
 # <a name="run"></a> Usage
 ## Command line help page
@@ -122,7 +127,7 @@ Column | Description
 chromosome | The chromosome name where the TE insertion occurred
 position | Starting breakpoint position of the TE insertions.
 end | Ending breakpoint position of the TE insertions.
-family | TE families of the insertion.
+family | TE family and TSD info, separated by '|'.
 support | Average coverage of reads supporting the TE insertion ('.' if insertion is reference).
 strand | Strand that TE insertion occurs
 
