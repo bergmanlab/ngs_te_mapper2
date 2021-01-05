@@ -139,7 +139,7 @@ For each ngs_te_mapper run, a log file called `<sample>.log` is generated that r
 Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper/issues) if you have questions.
 
 # <a name="license"></a> License
-Copyright (c) 2020 Shunhua Han, Raquel Linheiro, Michael G. Nelson and Casey M. Bergman
+Copyright (c) 2020 Shunhua Han, Raquel S. Linheiro, Michael G. Nelson, Casey M. Bergman
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
