@@ -395,6 +395,7 @@ def get_family_bed(args):
     contigs = args[6]
     experiment = args[7]
     tsd_max = args[8]
+    gap_max = args[9]
 
     family_dir = os.path.join(outdir, family)
     mkdir(family_dir)
@@ -433,22 +434,26 @@ def get_family_bed(args):
 
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
-    get_cluster(sm_bam, sm_bed, cutoff=1, window=100) #TODO: add this option to args?
+    get_cluster(sm_bam, sm_bed, cutoff=1, window=100)  # TODO: add this option to args?
 
     ms_bed = family_dir + "/" + family + ".ms.bed"
     get_cluster(ms_bam, ms_bed, cutoff=1, window=100)
 
     # get insertion candidate
     get_ref(sm_bed, ms_bed, te_gff, family_dir, family)
-    get_nonref(sm_bed, ms_bed, family_dir, family, tsd_max)
+    get_nonref(sm_bed, ms_bed, family_dir, family, tsd_max, gap_max)
 
 
-def get_nonref(bed1, bed2, outdir, family, tsd_max):
+def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
     overlap = outdir + "/" + family + ".overlap.tsv"
     if os.path.isfile(bed1) and os.path.isfile(bed2):
         with open(overlap, "w") as output:
+            # subprocess.call(
+            #     ["bedtools", "intersect", "-wao", "-a", bed1, "-b", bed2], stdout=output
+            # )
             subprocess.call(
-                ["bedtools", "intersect", "-wao", "-a", bed1, "-b", bed2], stdout=output
+                ["bedtools", "window", "-w", str(gap_max), "-a", bed1, "-b", bed2],
+                stdout=output,
             )
 
     # parse overlap
@@ -456,26 +461,56 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max):
         nonref = outdir + "/" + family + ".nonref.bed"
         with open(overlap, "r") as input, open(nonref, "w") as output:
             for line in input:
+                ins_pass = True
                 entry = line.replace("\n", "").split("\t")
-                if entry[4] != "." and int(entry[8]) <= tsd_max:
-                    chr = entry[0]
+                chr = entry[0]
+                if (
+                    (int(entry[1]) - int(entry[5])) > 0
+                    and (int(entry[2]) - int(entry[6])) > 0
+                ) or (
+                    (int(entry[5]) - int(entry[1])) > 0
+                    and (int(entry[6]) - int(entry[2])) > 0
+                ):  # get rid of entries if one is within another
                     if abs(int(entry[1]) - int(entry[6])) < abs(
                         int(entry[2]) - int(entry[5])
                     ):
-                        start = entry[1]
-                        end = entry[6]
+                        if int(entry[1]) < int(entry[6]):
+                            start = entry[1]
+                            end = entry[6]
+                        else:
+                            start = entry[6]
+                            end = entry[1]
                         strand = "-"
+                        dist = int(entry[1]) - int(
+                            entry[6]
+                        )  # positive: gap; negative: overlap
                     else:
-                        start = entry[5]
-                        end = entry[2]
+                        if int(entry[2]) < int(entry[5]):
+                            start = entry[2]
+                            end = entry[5]
+                        else:
+                            start = entry[5]
+                            end = entry[2]
                         strand = "+"
-                    score = (float(entry[3]) + float(entry[7])) / 2
-                    score = "{:.2f}".format(score)
-                    out_line = "\t".join(
-                        [chr, str(start), str(end), family, str(score), strand]
-                    )
-                    output.write(out_line + "\n")
-        os.remove(overlap)
+                        dist = int(entry[5]) - int(
+                            entry[2]
+                        )  # positive: gap; negative: overlap
+                    if dist < 0:
+                        if -dist > tsd_max:
+                            ins_pass = False
+                    else:
+                        if dist > gap_max:
+                            ins_pass = False
+
+                    if ins_pass:
+                        score = (float(entry[3]) + float(entry[7])) / 2
+                        score = "{:.2f}".format(score)
+                        family_info = "|".join([family, str(dist)])
+                        out_line = "\t".join(
+                            [chr, str(start), str(end), family_info, str(score), strand]
+                        )
+                        output.write(out_line + "\n")
+        # os.remove(overlap)
 
 
 def merge_bed(bed_in, bed_out):
@@ -493,6 +528,7 @@ def merge_bed(bed_in, bed_out):
         subprocess.call(["bedtools", "sort", "-i", bed_out_tmp], stdout=output)
     os.remove(bed_out_tmp)
 
+
 def get_ref(bed1, bed2, gff, out_dir, family, window=50):
     # get reference TE in bed format
     ref_rm = out_dir + "/" + family + ".ref_rm.bed"
@@ -502,13 +538,13 @@ def get_ref(bed1, bed2, gff, out_dir, family, window=50):
             if check_family in line:
                 entry = line.replace("\n", "").split("\t")
                 family = entry[8].split(" ")[1]
-                family = re.sub("\"Motif:", "", family)
-                family = re.sub("\"", "", family)
+                family = re.sub('"Motif:', "", family)
+                family = re.sub('"', "", family)
                 out_line = "\t".join(
                     [entry[0], entry[3], entry[4], family, ".", entry[6]]
                 )
                 output.write(out_line + "\n")
-    
+
     # calculate clusters that jointly support ref TEs (all, norm) with a percentage
     ref_sm = bed1.replace(".bed", ".ref.bed")
     if os.path.isfile(bed1):

@@ -64,7 +64,10 @@ def get_args():
         required=False,
     )
     optional.add_argument(
-        "--tsd_max", type=str, help="maximum TSD (default = 20) ", required=False
+        "--tsd_max", type=int, help="maximum TSD size (default = 20) ", required=False
+    )
+    optional.add_argument(
+        "--gap_max", type=int, help="maximum gap size (default = 0) ", required=False
     )
     optional.add_argument(
         "-m", "--mapper", type=str, help="mapper (default = bwa) ", required=False
@@ -119,6 +122,9 @@ def get_args():
 
     if args.tsd_max is None:
         args.tsd_max = 20
+
+    if args.gap_max is None:
+        args.gap_max = 0
 
     if args.thread is None:
         args.thread = 1
@@ -231,6 +237,7 @@ def main():
             contigs,
             args.experiment,
             args.tsd_max,
+            args.gap_max,
         ]
         family_arguments.append(argument)
     try:
