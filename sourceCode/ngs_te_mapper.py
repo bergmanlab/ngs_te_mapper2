@@ -37,7 +37,6 @@ def get_args():
         "-f",
         "--reads",
         type=str,
-        nargs="+",
         help="raw reads in fastq or fastq.gz format, separated by comma",
         required=True,
     )

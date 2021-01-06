@@ -48,6 +48,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
     library = create_soft_link(input_library, out_dir)
     ref = create_soft_link(input_reference, out_dir)
 
+    input_reads = input_reads.replace(" ", "").split(",")
     # unzip and merge input files, if muliple inputs were provided
     if len(input_reads) == 0:
         logging.exception("no reads are provided, check your input files")
@@ -65,15 +66,14 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
         else:
             fastq = read
     else:
-        fastq = os.path.join([out_dir, "merged.fastq"])
         prefix = get_prefix(reads_copy[0])
+        fastq = os.path.join(out_dir, prefix+".fastq")
         with open(fastq, "w") as output:
             for read in reads_copy:
                 if ".gz" in read:
                     subprocess.call(["gunzip", "-c", read], stdout=output)
                 else:
                     subprocess.call(["cat", read], stdout=output)
-
     return prefix, fastq, library, ref
 
 
