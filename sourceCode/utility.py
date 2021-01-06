@@ -569,10 +569,12 @@ def merge_bed(bed_in, bed_out):
 def get_ref(bed1, bed2, gff, out_dir, family, window=50):
     # get reference TE in bed format
     ref_rm = out_dir + "/" + family + ".ref_rm.bed"
+    family_ref_count = 0
     with open(ref_rm, "w") as output, open(gff, "r") as input:
         for line in input:
             check_family = "Motif:" + family
             if check_family in line:
+                family_ref_count = family_ref_count + 1
                 entry = line.replace("\n", "").split("\t")
                 family = entry[8].split(" ")[1]
                 family = re.sub('"Motif:', "", family)
@@ -582,48 +584,49 @@ def get_ref(bed1, bed2, gff, out_dir, family, window=50):
                 )
                 output.write(out_line + "\n")
 
-    # calculate clusters that jointly support ref TEs (all, norm) with a percentage
-    ref_sm = bed1.replace(".bed", ".ref.bed")
-    if os.path.isfile(bed1):
-        with open(ref_sm, "w") as output:
-            subprocess.call(
-                [
-                    "bedtools",
-                    "window",
-                    "-w",
-                    str(window),
-                    "-a",
-                    ref_rm,
-                    "-b",
-                    bed1,
-                    "-u",
-                ],
-                stdout=output,
-            )
-    ref_ms = bed2.replace(".bed", ".ref.bed")
-    if os.path.isfile(bed2):
-        with open(ref_ms, "w") as output:
-            subprocess.call(
-                [
-                    "bedtools",
-                    "window",
-                    "-w",
-                    str(window),
-                    "-a",
-                    ref_rm,
-                    "-b",
-                    bed2,
-                    "-u",
-                ],
-                stdout=output,
-            )
-    if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
-        ref_both = out_dir + "/" + family + ".ref.bed"
-        with open(ref_both, "w") as output:
-            subprocess.call(
-                ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
-                stdout=output,
-            )
-    os.remove(ref_sm)
-    os.remove(ref_ms)
+    if family_ref_count > 0:
+        # calculate clusters that jointly support ref TEs (all, norm) with a percentage
+        ref_sm = bed1.replace(".bed", ".ref.bed")
+        if os.path.isfile(bed1):
+            with open(ref_sm, "w") as output:
+                subprocess.call(
+                    [
+                        "bedtools",
+                        "window",
+                        "-w",
+                        str(window),
+                        "-a",
+                        ref_rm,
+                        "-b",
+                        bed1,
+                        "-u",
+                    ],
+                    stdout=output,
+                )
+        ref_ms = bed2.replace(".bed", ".ref.bed")
+        if os.path.isfile(bed2):
+            with open(ref_ms, "w") as output:
+                subprocess.call(
+                    [
+                        "bedtools",
+                        "window",
+                        "-w",
+                        str(window),
+                        "-a",
+                        ref_rm,
+                        "-b",
+                        bed2,
+                        "-u",
+                    ],
+                    stdout=output,
+                )
+        if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
+            ref_both = out_dir + "/" + family + ".ref.bed"
+            with open(ref_both, "w") as output:
+                subprocess.call(
+                    ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
+                    stdout=output,
+                )
+        os.remove(ref_sm)
+        os.remove(ref_ms)
     os.remove(ref_rm)
