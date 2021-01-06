@@ -124,7 +124,7 @@ def get_args():
         args.tsd_max = 20
 
     if args.gap_max is None:
-        args.gap_max = 0
+        args.gap_max = 5
 
     if args.thread is None:
         args.thread = 1
