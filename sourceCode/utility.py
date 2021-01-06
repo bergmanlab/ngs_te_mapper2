@@ -335,7 +335,6 @@ def repeatmask(ref, library, outdir, thread, augment=False):
                 "-s",
                 "-nolow",
                 "-no_is",
-                "-xsmall",
                 "-e",
                 "ncbi",
                 "-lib",
@@ -627,6 +626,4 @@ def get_ref(bed1, bed2, gff, out_dir, family, window=50):
                     ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
                     stdout=output,
                 )
-        os.remove(ref_sm)
-        os.remove(ref_ms)
     os.remove(ref_rm)
