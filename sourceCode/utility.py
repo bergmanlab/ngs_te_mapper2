@@ -178,7 +178,7 @@ def get_cluster(bam, bed, cutoff, window):
             entry = line.replace("\n", "").split("\t")
             if int(entry[2]) >= cutoff:
                 out_line = "\t".join(
-                    [entry[0], str(entry[1]), str(int(entry[1]) + 1), str(entry[2])]
+                    [entry[0], str(int(entry[1])-1), str(entry[1]), str(entry[2])]
                 )
                 output.write(out_line + "\n")
 
