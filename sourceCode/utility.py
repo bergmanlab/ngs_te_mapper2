@@ -6,6 +6,7 @@ import subprocess
 import logging
 import re
 from datetime import datetime, timedelta
+from statistics import mean
 import pysam
 
 """
@@ -67,7 +68,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
             fastq = read
     else:
         prefix = get_prefix(reads_copy[0])
-        fastq = os.path.join(out_dir, prefix+".fastq")
+        fastq = os.path.join(out_dir, prefix + ".fastq")
         with open(fastq, "w") as output:
             for read in reads_copy:
                 if ".gz" in read:
@@ -178,7 +179,7 @@ def get_cluster(bam, bed, cutoff, window):
             entry = line.replace("\n", "").split("\t")
             if int(entry[2]) >= cutoff:
                 out_line = "\t".join(
-                    [entry[0], str(int(entry[1])-1), str(entry[1]), str(entry[2])]
+                    [entry[0], str(int(entry[1]) - 1), str(entry[1]), str(entry[2])]
                 )
                 output.write(out_line + "\n")
 
@@ -204,11 +205,14 @@ def get_cluster(bam, bed, cutoff, window):
             stdout=output,
         )
 
-    # filter out non-chr entries
+    # filter out non-chr entries convert to half close coordinate (bed format)
     with open(bed, "w") as output, open(bed_tmp, "r") as input:
         for line in input:
             entry = line.replace("\n", "").split("\t")
             if "chr" in entry[0]:
+                out_line = "\t".join(
+                    [entry[0], entry[1], str(int(entry[2]) + 1), entry[3]]
+                )
                 output.write(line)
 
     os.remove(depth)
@@ -354,9 +358,12 @@ def repeatmask(ref, library, outdir, thread, augment=False):
                         print("No repetitive sequences detected")
                         ref_rm = ref
                         gff = None
+                        rm_bed = None
                     else:
                         raise Exception("Repeatmasking failed, exiting...")
         else:
+            rm_bed = os.path.join(outdir, os.path.basename(ref) + ".bed")
+            parse_rm_out(gff, rm_bed)
             open(ref_rm, "r")
     except Exception as e:
         print(e)
@@ -364,10 +371,11 @@ def repeatmask(ref, library, outdir, thread, augment=False):
         sys.exit(1)
     if augment:
         ref_rm_aug = ref_rm + ".aug"
-        subprocess.call(["cat", ref_rm, library], stdout=output)
-        return ref_rm_aug, gff
+        with open(ref_rm_aug, "w") as output:
+            subprocess.call(["cat", ref_rm, library], stdout=output)
+        return ref_rm_aug, rm_bed
     else:
-        return ref_rm, gff
+        return ref_rm, rm_bed
 
 
 def get_family_bam(bam_in, bam_out, family, thread):
@@ -424,13 +432,14 @@ def get_family_bed(args):
     family = args[0]
     bam = args[1]
     ref_rm = args[2]
-    te_gff = args[3]
+    rm_bed = args[3]
     outdir = args[4]
     mapper = args[5]
     contigs = args[6]
     experiment = args[7]
     tsd_max = args[8]
     gap_max = args[9]
+    window = args[10]
 
     family_dir = os.path.join(outdir, family)
     mkdir(family_dir)
@@ -469,15 +478,134 @@ def get_family_bed(args):
 
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
-    get_cluster(sm_bam, sm_bed, cutoff=1, window=100)  # TODO: add this option to args?
+    get_cluster(
+        sm_bam, sm_bed, cutoff=1, window=window
+    )  # TODO: add this option to args?
+
+    sm_bed_refined = family_dir + "/" + family + ".refined.sm.bed"
+    if os.path.isfile(sm_bed) and os.stat(sm_bed).st_size != 0:
+        refine_breakpoint(sm_bed_refined, sm_bed, sm_bam, "SM")
 
     ms_bed = family_dir + "/" + family + ".ms.bed"
-    get_cluster(ms_bam, ms_bed, cutoff=1, window=100)
+    get_cluster(ms_bam, ms_bed, cutoff=1, window=window)
+
+    ms_bed_refined = family_dir + "/" + family + ".refined.ms.bed"
+    if os.path.isfile(ms_bed) and os.stat(ms_bed).st_size != 0:
+        refine_breakpoint(ms_bed_refined, ms_bed, ms_bam, "MS")
+
+    if (
+        rm_bed is not None
+        and os.path.isfile(sm_bed_refined)
+        and os.path.isfile(ms_bed_refined)
+    ):
+        get_ref(sm_bed_refined, ms_bed_refined, rm_bed, family_dir, family)
+        # sm_bed_filtered = family_dir + "/" + family + ".filtered.sm.bed"
+        # ref_te_dict, sm_bed_filtered = get_ref(
+        #     sm_bed_refined, rm_bed, family_dir, family
+        # )
 
     # get insertion candidate
-    get_nonref(sm_bed, ms_bed, family_dir, family, tsd_max, gap_max)
-    if te_gff is not None:
-        get_ref(sm_bed, ms_bed, te_gff, family_dir, family)
+    # try:
+    if os.path.isfile(sm_bed_refined) and os.path.isfile(ms_bed_refined):
+        get_nonref(sm_bed_refined, ms_bed_refined, family_dir, family, tsd_max, gap_max)
+
+
+def parse_cigar(cigar):
+    offset = 0
+    pattern = ""
+    for item in cigar:
+        if item[0] == 0:
+            offset = offset + item[1]
+            if "M" not in pattern:
+                pattern = pattern + "M"
+        elif item[0] == 1:
+            continue
+        elif item[0] == 2:
+            offset = offset + item[1]
+        elif item[0] == 4 or item[0] == 5:
+            pattern = pattern + "S"
+        else:
+            print("I don't recognize this string:" + str(item[0]) + "\n")
+    return pattern, offset
+
+
+def refine_breakpoint(new_bed, old_bed, bam, cigar_type):
+    samfile = pysam.AlignmentFile(bam, "rb")
+    with open(old_bed, "r") as input, open(new_bed, "w") as output:
+        for line in input:
+            entry = line.replace("\n", "").split("\t")
+            chromosome = entry[0]
+            cov_start = int(entry[1])
+            cov_end = int(entry[2])
+            cov_count = entry[3]
+            breakpoints = dict()
+            cigars = {"SM": 0, "MS": 0}
+            for read in samfile.fetch(chromosome, cov_start, cov_end):
+                ref_start = read.reference_start
+                pattern, offset = parse_cigar(read.cigar)
+                # if offset > 150 or offset < -150:
+                #     print("strange offset:" + str(offset) + "\n")
+                #     print(read.cigar)
+                #     print(read.reference_start)
+                #     print(read.query_name)
+                if pattern == "SM":
+                    cigars["SM"] = cigars["SM"] + 1
+                    breakpoint = ref_start
+                elif pattern == "MS":
+                    cigars["MS"] = cigars["MS"] + 1
+                    breakpoint = ref_start + offset
+                else:
+                    # print("weird pattern:" + pattern)
+                    # print(read.query_name)
+                    # print(read.cigar)
+                    breakpoint = None
+                if breakpoint:
+                    if breakpoint in breakpoints:
+                        breakpoints[breakpoint] = breakpoints[breakpoint] + 1
+                    else:
+                        breakpoints[breakpoint] = 1
+
+            cigar_joint = get_keys(cigars)
+            breakpoint_joint = get_keys(breakpoints)
+
+            if cigar_joint:
+                if len(cigar_joint) > 1:
+                    cigar_joint = "mix"
+                else:
+                    cigar_joint = cigar_joint[0]
+            if breakpoint_joint:
+                breakpoint_joint = round(mean(breakpoint_joint))
+
+            if cigar_joint == "MS":
+                refined_start = cov_start
+                refined_end = breakpoint_joint
+            elif cigar_joint == "SM":
+                refined_start = breakpoint_joint
+                refined_end = cov_end
+            else:
+                refined_start = cov_start
+                refined_end = cov_end
+
+            if (cigar_joint == "SM" or cigar_joint == "MS") and breakpoint_joint:
+                out_line = "\t".join(
+                    [
+                        chromosome,
+                        str(refined_start),
+                        str(refined_end),
+                        cov_count,
+                    ]
+                )
+                output.write(out_line + "\n")
+    # sys.exit(1)
+
+
+def get_keys(dictionary):
+    if bool(dictionary):
+        max_value = max(dictionary.values())
+        indices = [i for i, x in dictionary.items() if x == max_value]
+        return indices
+    else:
+        return None
 
 
 def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
@@ -493,13 +621,13 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
             )
 
     # parse overlap
-    if os.path.isfile(overlap):
+    if os.path.isfile(overlap) and os.stat(overlap).st_size != 0:
         nonref = outdir + "/" + family + ".nonref.bed"
         with open(overlap, "r") as input, open(nonref, "w") as output:
             for line in input:
                 ins_pass = True
                 entry = line.replace("\n", "").split("\t")
-                chr = entry[0]
+                chromosome = entry[0]
                 if (
                     (int(entry[1]) - int(entry[5])) > 0
                     and (int(entry[2]) - int(entry[6])) > 0
@@ -543,7 +671,14 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
                         score = "{:.2f}".format(score)
                         family_info = "|".join([family, str(dist)])
                         out_line = "\t".join(
-                            [chr, str(start), str(end), family_info, str(score), strand]
+                            [
+                                chromosome,
+                                str(start),
+                                str(end),
+                                family_info,
+                                str(score),
+                                strand,
+                            ]
                         )
                         output.write(out_line + "\n")
         # os.remove(overlap)
@@ -565,15 +700,10 @@ def merge_bed(bed_in, bed_out):
     os.remove(bed_out_tmp)
 
 
-def get_ref(bed1, bed2, gff, out_dir, family, window=50):
-    # get reference TE in bed format
-    ref_rm = out_dir + "/" + family + ".ref_rm.bed"
-    family_ref_count = 0
-    with open(ref_rm, "w") as output, open(gff, "r") as input:
+def parse_rm_out(rm_gff, bed):
+    with open(bed, "w") as output, open(rm_gff, "r") as input:
         for line in input:
-            check_family = "Motif:" + family
-            if check_family in line:
-                family_ref_count = family_ref_count + 1
+            if "RepeatMasker" in line:
                 entry = line.replace("\n", "").split("\t")
                 family = entry[8].split(" ")[1]
                 family = re.sub('"Motif:', "", family)
@@ -583,47 +713,52 @@ def get_ref(bed1, bed2, gff, out_dir, family, window=50):
                 )
                 output.write(out_line + "\n")
 
-    if family_ref_count > 0:
-        # calculate clusters that jointly support ref TEs (all, norm) with a percentage
-        ref_sm = bed1.replace(".bed", ".ref.bed")
-        if os.path.isfile(bed1):
-            with open(ref_sm, "w") as output:
-                subprocess.call(
-                    [
-                        "bedtools",
-                        "window",
-                        "-w",
-                        str(window),
-                        "-a",
-                        ref_rm,
-                        "-b",
-                        bed1,
-                        "-u",
-                    ],
-                    stdout=output,
-                )
-        ref_ms = bed2.replace(".bed", ".ref.bed")
-        if os.path.isfile(bed2):
-            with open(ref_ms, "w") as output:
-                subprocess.call(
-                    [
-                        "bedtools",
-                        "window",
-                        "-w",
-                        str(window),
-                        "-a",
-                        ref_rm,
-                        "-b",
-                        bed2,
-                        "-u",
-                    ],
-                    stdout=output,
-                )
-        if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
-            ref_both = out_dir + "/" + family + ".ref.bed"
-            with open(ref_both, "w") as output:
-                subprocess.call(
-                    ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
-                    stdout=output,
-                )
-    os.remove(ref_rm)
+
+def get_ref(cov_bed, rm_bed, out_dir, family, window=50):
+    # calculate clusters that jointly support ref TEs (all, norm) with a percentage
+    ref_te_cov = cov_bed.replace(".bed", ".ref.cov.bed")
+    if os.path.isfile(cov_bed):
+        with open(ref_te_cov, "w") as output:
+            subprocess.call(
+                [
+                    "bedtools",
+                    "window",
+                    "-w",
+                    str(window),
+                    "-a",
+                    rm_bed,
+                    "-b",
+                    cov_bed,
+                    "-u",
+                ],
+                stdout=output,
+            )
+    # with open(ref_te_cov, "r") as input:
+    #     for line in input:
+
+    # ref_ms = bed2.replace(".bed", ".ref.bed")
+    # if os.path.isfile(bed2):
+    #     with open(ref_ms, "w") as output:
+    #         subprocess.call(
+    #             [
+    #                 "bedtools",
+    #                 "window",
+    #                 "-w",
+    #                 str(window),
+    #                 "-a",
+    #                 rm_bed,
+    #                 "-b",
+    #                 bed2,
+    #                 "-u",
+    #             ],
+    #             stdout=output,
+    #         )
+    # go over those output files and build dict for reference TEs
+
+    # if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
+    #     ref_both = out_dir + "/" + family + ".ref.bed"
+    #     with open(ref_both, "w") as output:
+    #         subprocess.call(
+    #             ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
+    #             stdout=output,
+    #         )

@@ -54,7 +54,7 @@ def get_args():
         "-w",
         "--window",
         type=int,
-        help="merge window for identifying TE clusters (default = 100) ",
+        help="merge window for identifying TE clusters (default = 10) ",
         required=False,
     )
     optional.add_argument(
@@ -70,7 +70,11 @@ def get_args():
         "--gap_max", type=int, help="maximum gap size (default = 0) ", required=False
     )
     optional.add_argument(
-        "-m", "--mapper", type=str, help="read alignment program (default = 'bwa') ", required=False
+        "-m",
+        "--mapper",
+        type=str,
+        help="read alignment program (default = 'bwa') ",
+        required=False,
     )
     optional.add_argument(
         "-t", "--thread", type=int, help="thread (default = 1) ", required=False
@@ -130,7 +134,7 @@ def get_args():
         args.thread = 1
 
     if args.window is None:
-        args.window = 100
+        args.window = 10
 
     return args
 
@@ -173,7 +177,7 @@ def main():
         augment = False
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
-    ref_modified, te_gff = repeatmask(
+    ref_modified, rm_bed = repeatmask(
         ref=ref,
         library=library,
         outdir=rm_dir,
@@ -231,13 +235,14 @@ def main():
             family,
             bam,
             ref_modified,
-            te_gff,
+            rm_bed,
             family_dir,
             args.mapper,
             contigs,
             args.experiment,
             args.tsd_max,
             args.gap_max,
+            args.window,
         ]
         family_arguments.append(argument)
     try:
@@ -260,12 +265,12 @@ def main():
     bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
-    # merge ref bed files
-    if te_gff is not None:
-        final_bed = args.out + "/" + sample_prefix + ".ref.bed"
-        pattern = "/*/*.ref.bed"
-        bed_files = glob(family_dir + pattern, recursive=True)
-        merge_bed(bed_in=bed_files, bed_out=final_bed)
+    # # merge ref bed files
+    # if rm_bed is not None:
+    #     final_bed = args.out + "/" + sample_prefix + ".ref.bed"
+    #     pattern = "/*/*.ref.bed"
+    #     bed_files = glob(family_dir + pattern, recursive=True)
+    #     merge_bed(bed_in=bed_files, bed_out=final_bed)
 
     # clean tmp files
     if not args.keep_files:
