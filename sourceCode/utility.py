@@ -275,7 +275,7 @@ def sort_index_bam(bam, sorted_bam, thread):
         sys.exit(1)
 
 
-def make_bam(fq, ref, thread, bam, mapper="minimap2"):
+def make_bam(fq, ref, thread, bam, mapper="bwa"):
     # alignment and generate sorted bam file
     sam = bam + ".sam"
 
@@ -505,9 +505,93 @@ def get_family_bed(args):
         # )
 
     # get insertion candidate
-    # try:
     if os.path.isfile(sm_bed_refined) and os.path.isfile(ms_bed_refined):
         get_nonref(sm_bed_refined, ms_bed_refined, family_dir, family, tsd_max, gap_max)
+
+
+def get_genome_file(ref):
+    subprocess.call(["samtools", "faidx", ref])
+    ref_index = ref + ".fai"
+    genome = ref + ".genome"
+    with open(ref_index, "r") as input, open(genome, "w") as output:
+        for line in input:
+            entry = line.replace("\n", "").split("\t")
+            out_line = "\t".join([entry[0], entry[1]])
+            output.write(out_line + "\n")
+    return genome
+
+
+def get_af(
+    bed, ref, reads, thread, out_dir, sample_prefix, method="max", slop=150, offset=10
+):
+    # create masked genome (only allow bases around non-ref TEs)
+    genome = get_genome_file(ref)
+    expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
+    with open(expand_bed, "w") as output:
+        subprocess.call(
+            ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
+            stdout=output,
+        )
+
+    complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
+    with open(complement_bed, "w") as output:
+        subprocess.call(
+            ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
+        )
+
+    masked_ref = ref + ".nonref.masked"
+    subprocess.call(
+        ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
+    )
+    subprocess.call(["bwa", "index", masked_ref])
+    # map raw reads to masked genome
+    bam = out_dir + "/" + sample_prefix + ".nonref.bam"
+    make_bam(fq=reads, ref=masked_ref, thread=thread, bam=bam)
+
+    # for each site, figure out AF
+    af_bed = bed.replace(".bed", ".af.bed")
+    samfile = pysam.AlignmentFile(bam, "rb")
+    with open(bed, "r") as input, open(af_bed, "w") as output:
+        for line in input:
+            entry = line.replace("\n", "").split("\t")
+            chromosome = entry[0]
+            start = int(entry[1])
+            end = int(entry[2])
+            info = entry[3]
+            score = entry[4]
+            strand = entry[5]
+
+            n_cigar1 = count_read(samfile, chromosome, start - offset, start, "MS")
+            n_cigar2 = count_read(samfile, chromosome, end, end + offset, "SM")
+
+            n_ref = count_read(samfile, chromosome, start, end, "M")
+
+            af1 = n_cigar1 / (n_cigar1 + n_ref)
+            af2 = n_cigar2 / (n_cigar2 + n_ref)
+
+            if method == "max":
+                af = round(max(af1, af2), 2)
+            else:
+                af = round(mean([af1, af2]), 2)
+
+            # output
+            info_new = "|".join(
+                [info, str(af), str(n_cigar1), str(n_cigar2), str(n_ref)]
+            )
+            out_line = "\t".join(
+                [chromosome, str(start), str(end), info_new, score, strand]
+            )
+            output.write(out_line + "\n")
+    return af_bed
+
+
+def count_read(samfile, chromosome, start, end, cigar_pattern):
+    n_read = 0
+    for read in samfile.fetch(chromosome, start, end):
+        pattern, offset = parse_cigar(read.cigar)
+        if pattern == cigar_pattern:
+            n_read = n_read + 1
+    return n_read
 
 
 def parse_cigar(cigar):
@@ -587,12 +671,13 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type):
                 refined_end = cov_end
 
             if (cigar_joint == "SM" or cigar_joint == "MS") and breakpoint_joint:
+                cigar_count = cigars[cigar_joint]
                 out_line = "\t".join(
                     [
                         chromosome,
                         str(refined_start),
                         str(refined_end),
-                        cov_count,
+                        str(cigar_count),
                     ]
                 )
                 output.write(out_line + "\n")
@@ -667,8 +752,10 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
                             ins_pass = False
 
                     if ins_pass:
-                        score = (float(entry[3]) + float(entry[7])) / 2
-                        score = "{:.2f}".format(score)
+                        # score = (float(entry[3]) + float(entry[7])) / 2
+                        # score = "{:.2f}".format(score)
+                        # score = "|".join([entry[3], entry[7]])
+                        score = "."
                         family_info = "|".join([family, str(dist)])
                         out_line = "\t".join(
                             [

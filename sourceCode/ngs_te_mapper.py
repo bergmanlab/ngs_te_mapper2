@@ -17,6 +17,7 @@ from utility import (
     merge_bed,
     mkdir,
     format_time,
+    get_af,
 )
 
 """
@@ -61,6 +62,12 @@ def get_args():
         "--experiment",
         action="store_true",
         help="If provided then reads will be mapped to masked augmented reference in the first step (by default reads will be mapped to TE library)",
+        required=False,
+    )
+    optional.add_argument(
+        "--af",
+        action="store_true",
+        help="If provided then ngs_te_mapper2 will attempt to estimate allele frequency",
         required=False,
     )
     optional.add_argument(
@@ -214,12 +221,10 @@ def main():
         # align reads to TE library (single end mode)
         bam = tmp_dir + "/" + sample_prefix + ".bam"
         make_bam(fastq, library, str(args.thread), bam, args.mapper)
-        os.remove(fastq)
     else:
         # align reads to masked augmented reference (single end mode)
         bam = tmp_dir + "/" + sample_prefix + ".bam"
         make_bam(fastq, ref_modified, str(args.thread), bam, args.mapper)
-        os.remove(fastq)
     proc_time_align = time.time() - start_time_align
     logging.info("Alignment finished in " + format_time(proc_time_align))
 
@@ -259,18 +264,29 @@ def main():
         "Insertion candidate search finished in " + format_time(proc_time_candidate)
     )
 
-    # merge non-ref bed files
-    final_bed = args.out + "/" + sample_prefix + ".nonref.bed"
+    # gather non-reference predictions by family
+    nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
-    merge_bed(bed_in=bed_files, bed_out=final_bed)
+    merge_bed(bed_in=bed_files, bed_out=nonref_bed)
 
-    # # merge ref bed files
-    # if rm_bed is not None:
-    #     final_bed = args.out + "/" + sample_prefix + ".ref.bed"
-    #     pattern = "/*/*.ref.bed"
-    #     bed_files = glob(family_dir + pattern, recursive=True)
-    #     merge_bed(bed_in=bed_files, bed_out=final_bed)
+    # estimate AF for non-ref
+    if args.af:
+        logging.info("Estimating non-reference insertion allele frequency...")
+        start_time_af = time.time()
+        af_bed = get_af(nonref_bed, ref, fastq, args.thread, tmp_dir, sample_prefix)
+        os.rename(af_bed, nonref_bed)
+        proc_time_af = time.time() - start_time_af
+        logging.info(
+            "Allele frequency estimation finished in " + format_time(proc_time_align)
+        )
+
+    # gather reference predictions by family
+    if rm_bed is not None:
+        ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
+        pattern = "/*/*.ref.bed"
+        bed_files = glob(family_dir + pattern, recursive=True)
+        merge_bed(bed_in=bed_files, bed_out=ref_bed)
 
     # clean tmp files
     if not args.keep_files:
