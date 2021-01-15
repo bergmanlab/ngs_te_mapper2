@@ -42,7 +42,7 @@ def create_soft_link(input, out_dir):
 
 def parse_input(input_reads, input_library, input_reference, out_dir):
     """
-    Parse input files. If bam file is provided, convert to fasta format.
+    Parse input files.
     """
     logging.info("Parsing input files...")
 
@@ -80,6 +80,9 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
 
 
 def get_prefix(path):
+    """
+    Get prefix of the input fastq files.
+    """
     no_path = os.path.basename(path)
     if no_path[-3:] == ".gz":
         no_path = no_path[:-3]
@@ -97,63 +100,6 @@ def bam2fastq(bam, fastq):
         print(e)
         print("BAM to Fastq conversion failed, check input bam file, exiting...")
         sys.exit(1)
-
-
-def get_bam_stats(bam, stat, ref_index, families, dir):
-    # this script generates alignment stats
-    bed_unique = dir + "/" + "unique.bed"
-    bed_none = dir + "/" + "none.bed"
-    with open(ref_index, "r") as input, open(bed_unique, "w") as unique, open(
-        bed_none, "w"
-    ) as none:
-        for line in input:
-            entry = line.replace("\n", "").split("\t")
-            out_line = "\t".join([entry[0], "1", entry[1]])
-            if "chr" in line:
-                unique.write(out_line + "\n")
-            elif all(x not in line for x in families):
-                none.write(out_line + "\n")
-
-    bam_name = os.path.basename(bam).replace(".bam", "")
-    sample_name = bam_name.split(".")[0]
-    read_name = bam_name.split(".")[1]
-    with open(stat, "a") as output:
-        output.write(sample_name + "\t")
-        output.write(read_name + "\t")
-        num = subprocess.Popen(["samtools", "view", "-c", bam], stdout=subprocess.PIPE)
-        total_reads = num.stdout.read().decode().replace("\n", "")
-        output.write(total_reads + "\t")
-        num = subprocess.Popen(
-            ["samtools", "view", "-c", "-F", "260", bam], stdout=subprocess.PIPE
-        )
-        mapped_reads = num.stdout.read().decode().replace("\n", "")
-        pt = "{:.1%}".format(int(mapped_reads) / int(total_reads))
-        output.write(pt + "\t")
-        # unique region
-        readc, pt = count_reads(bam, bed_unique, total_reads)
-        output.write("{:.1%}".format(pt) + "\t")
-        pt_tes = 0
-        # per family
-        for family in families:
-            bed = dir + "/" + family + ".bed"
-            with open(ref_index, "r") as INDEX, open(bed, "w") as BED:
-                for line in INDEX:
-                    entry = line.replace("\n", "").split("\t")
-                    out_line = "\t".join([entry[0], "1", entry[1]])
-                    if family in line:
-                        BED.write(out_line + "\n")
-            readc, pt = count_reads(bam, bed, total_reads)
-            pt_tes = pt_tes + pt
-            output.write("{:.1%}".format(pt) + "\t")
-            os.remove(bed)
-        # focal TE regions
-        output.write("{:.1%}".format(pt_tes) + "\t")
-        # none region
-        readc, pt = count_reads(bam, bed_none, total_reads)
-        output.write("{:.1%}".format(pt) + "\t")
-        output.write("\n")
-        os.remove(bed_none)
-        os.remove(bed_unique)
 
 
 def get_lines(path):
@@ -329,7 +275,7 @@ def make_bam(fq, ref, thread, bam, mapper="bwa"):
 #     sort_index_bam(bam_tmp, bam_out, thread)
 
 
-def repeatmask(ref, library, outdir, thread, augment=False):
+def repeatmask(ref, library, outdir, thread):
     try:
         subprocess.call(
             [
@@ -370,13 +316,7 @@ def repeatmask(ref, library, outdir, thread, augment=False):
         print(e)
         print("Repeatmasking failed, exiting...")
         sys.exit(1)
-    if augment:
-        ref_rm_aug = ref_rm + ".aug"
-        with open(ref_rm_aug, "w") as output:
-            subprocess.call(["cat", ref_rm, library], stdout=output)
-        return ref_rm_aug, rm_bed
-    else:
-        return ref_rm, rm_bed
+    return ref_rm, rm_bed
 
 
 def get_family_bam(bam_in, bam_out, family, thread):
@@ -490,10 +430,6 @@ def get_family_bed(args):
         and os.path.isfile(ms_bed_refined)
     ):
         get_ref(sm_bed_refined, ms_bed_refined, rm_bed, family_dir, family)
-        # sm_bed_filtered = family_dir + "/" + family + ".filtered.sm.bed"
-        # ref_te_dict, sm_bed_filtered = get_ref(
-        #     sm_bed_refined, rm_bed, family_dir, family
-        # )
 
     # get insertion candidate
     if os.path.isfile(sm_bed_refined) and os.path.isfile(ms_bed_refined):
@@ -804,7 +740,7 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
 
 
 def merge_bed(bed_in, bed_out, genome):
-    # merge bed files from all families, check overlap within and betweeen families, merge or remove entried if necessary
+    # merge bed files from all families, check overlap, merge or remove entried if necessary
     bed_out_tmp = bed_out + ".tmp"
     with open(bed_out_tmp, "w") as output:
         for bed in bed_in:
@@ -813,12 +749,15 @@ def merge_bed(bed_in, bed_out, genome):
                     for line in input:
                         output.write(line)
 
-    # sort bed files
-    with open(bed_out, "w") as output:
-        subprocess.call(
-            ["bedtools", "sort", "-i", bed_out_tmp, "-g", genome], stdout=output
-        )
-    os.remove(bed_out_tmp)
+    if get_lines(bed_out_tmp) != 0:
+        # sort bed files
+        with open(bed_out, "w") as output:
+            subprocess.call(
+                ["bedtools", "sort", "-i", bed_out_tmp, "-g", genome], stdout=output
+            )
+        os.remove(bed_out_tmp)
+    else:
+        os.rename(bed_out_tmp, bed_out)
 
 
 def parse_rm_out(rm_gff, bed):

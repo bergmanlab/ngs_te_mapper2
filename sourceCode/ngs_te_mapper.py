@@ -19,6 +19,7 @@ from utility import (
     format_time,
     get_af,
     get_genome_file,
+    get_lines,
 )
 
 """
@@ -161,7 +162,7 @@ def main():
     tmp_dir = os.path.join(args.out, "intermediate_files")
     mkdir(tmp_dir)
 
-    # Parse input
+    # parse input files
     sample_prefix, fastq, library, ref = parse_input(
         input_reads=args.reads,
         input_library=args.library,
@@ -180,7 +181,6 @@ def main():
         library=library,
         outdir=rm_dir,
         thread=args.thread,
-        augment=False,
     )
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_modified])
@@ -204,19 +204,18 @@ def main():
 
     contigs = " ".join(contigs)
 
-    # step one: align read to TE library or masked augmented ref
+    # align reads to TE library
     print("Align reads to TE library..")
     logging.info("Start alignment...")
     start_time_align = time.time()
-    # align reads to TE library (single end mode)
     bam = tmp_dir + "/" + sample_prefix + ".bam"
     make_bam(fastq, library, str(args.thread), bam, args.mapper)
     proc_time_align = time.time() - start_time_align
     logging.info("Alignment finished in " + format_time(proc_time_align))
 
-    # use samtools to separate bam into family bam (single thread)
-    print("Detection by family...")
-    logging.info("Start insertion candidate search...")
+    # use samtools to separate bam by family
+    print("Detecting insertions...")
+    logging.info("Detecting insertions...")
     start_time_candidate = time.time()
     family_dir = os.path.join(tmp_dir, "family-specific")
     mkdir(family_dir)
@@ -249,32 +248,40 @@ def main():
         "Insertion candidate search finished in " + format_time(proc_time_candidate)
     )
 
-    # gather non-reference predictions by family
-    genome = get_genome_file(ref)
+    # gather reference TE predictions
+    ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
+    if rm_bed is not None:
+        pattern = "/*/*.ref.bed"
+        bed_files = glob(family_dir + pattern, recursive=True)
+        merge_bed(bed_in=bed_files, bed_out=ref_bed, genome=genome)
+    else:
+        open(ref_bed, "w").close()
+    num_ref = get_lines(ref_bed)
+
+    # gather non-reference TE predictions
     nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
+    genome = get_genome_file(ref)
     merge_bed(bed_in=bed_files, bed_out=nonref_bed, genome=genome)
+    num_nonref = get_lines(nonref_bed)
 
-    # estimate AF for non-ref
-    if args.af:
+    # estimate allele frequency for non-reference TEs
+    if args.af and num_nonref != 0:
         logging.info("Estimating non-reference insertion allele frequency...")
         start_time_af = time.time()
         af_bed = get_af(
             nonref_bed, ref, fastq, genome, args.thread, tmp_dir, sample_prefix
         )
-        os.rename(af_bed, nonref_bed)
+        if get_lines(af_bed) == num_nonref:
+            os.rename(af_bed, nonref_bed)
+        else:
+            print("Allele frequency estimation failed.")
+            sys.exit(1)
         proc_time_af = time.time() - start_time_af
         logging.info(
             "Allele frequency estimation finished in " + format_time(proc_time_align)
         )
-
-    # gather reference predictions by family
-    if rm_bed is not None:
-        ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
-        pattern = "/*/*.ref.bed"
-        bed_files = glob(family_dir + pattern, recursive=True)
-        merge_bed(bed_in=bed_files, bed_out=ref_bed, genome=genome)
 
     # clean tmp files
     if not args.keep_files:
@@ -283,6 +290,8 @@ def main():
     proc_time_all = time.time() - start_time_all
     print("ngs_te_mapper finished!")
     logging.info("ngs_te_mapper finished in " + format_time(proc_time_all))
+    logging.info("Number of reference TEs: " + str(num_ref))
+    logging.info("Number of non-reference TEs: " + str(num_nonref))
 
 
 main()
