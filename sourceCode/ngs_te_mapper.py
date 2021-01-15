@@ -18,6 +18,7 @@ from utility import (
     mkdir,
     format_time,
     get_af,
+    get_genome_file,
 )
 
 """
@@ -265,16 +266,19 @@ def main():
     )
 
     # gather non-reference predictions by family
+    genome = get_genome_file(ref)
     nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
-    merge_bed(bed_in=bed_files, bed_out=nonref_bed)
+    merge_bed(bed_in=bed_files, bed_out=nonref_bed, genome=genome)
 
     # estimate AF for non-ref
     if args.af:
         logging.info("Estimating non-reference insertion allele frequency...")
         start_time_af = time.time()
-        af_bed = get_af(nonref_bed, ref, fastq, args.thread, tmp_dir, sample_prefix)
+        af_bed = get_af(
+            nonref_bed, ref, fastq, genome, args.thread, tmp_dir, sample_prefix
+        )
         os.rename(af_bed, nonref_bed)
         proc_time_af = time.time() - start_time_af
         logging.info(
@@ -286,7 +290,7 @@ def main():
         ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
         pattern = "/*/*.ref.bed"
         bed_files = glob(family_dir + pattern, recursive=True)
-        merge_bed(bed_in=bed_files, bed_out=ref_bed)
+        merge_bed(bed_in=bed_files, bed_out=ref_bed, genome=genome)
 
     # clean tmp files
     if not args.keep_files:

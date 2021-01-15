@@ -5,6 +5,7 @@ import os
 import subprocess
 import logging
 import re
+import math
 from datetime import datetime, timedelta
 from statistics import mean
 import pysam
@@ -522,10 +523,9 @@ def get_genome_file(ref):
 
 
 def get_af(
-    bed, ref, reads, thread, out_dir, sample_prefix, method="max", slop=150, offset=10
+    bed, ref, reads, genome, thread, out_dir, sample_prefix, method="max", slop=150
 ):
     # create masked genome (only allow bases around non-ref TEs)
-    genome = get_genome_file(ref)
     expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
     with open(expand_bed, "w") as output:
         subprocess.call(
@@ -561,18 +561,48 @@ def get_af(
             score = entry[4]
             strand = entry[5]
 
-            n_cigar1 = count_read(samfile, chromosome, start - offset, start, "MS")
-            n_cigar2 = count_read(samfile, chromosome, end, end + offset, "SM")
+            cigar_offset = 10
 
-            n_ref = count_read(samfile, chromosome, start, end, "M")
+            n_cigar1 = count_nonref_read(
+                samfile, chromosome, start - cigar_offset, start, "MS"
+            )
+            n_cigar2 = count_nonref_read(
+                samfile, chromosome, end, end + cigar_offset, "SM"
+            )
 
-            af1 = n_cigar1 / (n_cigar1 + n_ref)
-            af2 = n_cigar2 / (n_cigar2 + n_ref)
+            ref_offset = 5
+            n_ref = count_ref_read(
+                samfile, chromosome, start - ref_offset, end + ref_offset
+            )
+
+            try:
+                af1 = n_cigar1 / (n_cigar1 + n_ref)
+            except ZeroDivisionError:
+                af1 = None
+
+            try:
+                af2 = n_cigar2 / (n_cigar2 + n_ref)
+            except ZeroDivisionError:
+                af2 = None
 
             if method == "max":
-                af = round(max(af1, af2), 2)
+                if af1 and af2:
+                    af = round(max(af1, af2), 2)
+                elif af1:
+                    af = af1
+                elif af2:
+                    af = af2
+                else:
+                    af = "NA"
             else:
-                af = round(mean([af1, af2]), 2)
+                if af1 and af2:
+                    af = round(mean([af1, af2]), 2)
+                elif af1:
+                    af = af1
+                elif af2:
+                    af = af2
+                else:
+                    af = "NA"
 
             # output
             info_new = "|".join(
@@ -585,12 +615,24 @@ def get_af(
     return af_bed
 
 
-def count_read(samfile, chromosome, start, end, cigar_pattern):
+def count_nonref_read(samfile, chromosome, start, end, cigar_pattern):
     n_read = 0
     for read in samfile.fetch(chromosome, start, end):
         pattern, offset = parse_cigar(read.cigar)
         if pattern == cigar_pattern:
             n_read = n_read + 1
+    return n_read
+
+
+def count_ref_read(samfile, chromosome, start, end):
+    n_read = 0
+    for read in samfile.fetch(chromosome, start, end):
+        pattern, offset = parse_cigar(read.cigar)
+        if pattern == "M":
+            read_start = read.reference_start
+            read_end = read_start + offset
+            if read_start <= start and read_end >= end:
+                n_read = n_read + 1
     return n_read
 
 
@@ -771,7 +813,7 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
         # os.remove(overlap)
 
 
-def merge_bed(bed_in, bed_out):
+def merge_bed(bed_in, bed_out, genome):
     # merge bed files from all families, check overlap within and betweeen families, merge or remove entried if necessary
     bed_out_tmp = bed_out + ".tmp"
     with open(bed_out_tmp, "w") as output:
@@ -783,7 +825,9 @@ def merge_bed(bed_in, bed_out):
 
     # sort bed files
     with open(bed_out, "w") as output:
-        subprocess.call(["bedtools", "sort", "-i", bed_out_tmp], stdout=output)
+        subprocess.call(
+            ["bedtools", "sort", "-i", bed_out_tmp, "-g", genome], stdout=output
+        )
     os.remove(bed_out_tmp)
 
 
