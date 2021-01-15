@@ -60,12 +60,6 @@ def get_args():
         required=False,
     )
     optional.add_argument(
-        "--experiment",
-        action="store_true",
-        help="If provided then reads will be mapped to masked augmented reference in the first step (by default reads will be mapped to TE library)",
-        required=False,
-    )
-    optional.add_argument(
         "--af",
         action="store_true",
         help="If provided then ngs_te_mapper2 will attempt to estimate allele frequency",
@@ -179,10 +173,6 @@ def main():
         sample_prefix = args.prefix
 
     # prepare modified reference genome
-    if args.experiment:
-        augment = True
-    else:
-        augment = False
     rm_dir = os.path.join(tmp_dir, "repeatmask")
     mkdir(rm_dir)
     ref_modified, rm_bed = repeatmask(
@@ -218,14 +208,9 @@ def main():
     print("Align reads to TE library..")
     logging.info("Start alignment...")
     start_time_align = time.time()
-    if not args.experiment:
-        # align reads to TE library (single end mode)
-        bam = tmp_dir + "/" + sample_prefix + ".bam"
-        make_bam(fastq, library, str(args.thread), bam, args.mapper)
-    else:
-        # align reads to masked augmented reference (single end mode)
-        bam = tmp_dir + "/" + sample_prefix + ".bam"
-        make_bam(fastq, ref_modified, str(args.thread), bam, args.mapper)
+    # align reads to TE library (single end mode)
+    bam = tmp_dir + "/" + sample_prefix + ".bam"
+    make_bam(fastq, library, str(args.thread), bam, args.mapper)
     proc_time_align = time.time() - start_time_align
     logging.info("Alignment finished in " + format_time(proc_time_align))
 
@@ -245,7 +230,6 @@ def main():
             family_dir,
             args.mapper,
             contigs,
-            args.experiment,
             args.tsd_max,
             args.gap_max,
             args.window,

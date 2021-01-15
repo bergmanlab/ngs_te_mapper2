@@ -309,24 +309,24 @@ def make_bam(fq, ref, thread, bam, mapper="bwa"):
     os.remove(sam)
 
 
-def subset_bam_ids(bam_in, bam_out, contigs, ids, thread):
-    # subset bam file using read IDs
-    # # https://bioinformatics.stackexchange.com/questions/3380/how-to-subset-a-bam-by-a-list-of-qnames
-    bam_tmp = bam_out + ".tmp"
-    with open(bam_tmp, "w") as output:
-        command = (
-            "samtools view -h "
-            + bam_in
-            + " "
-            + contigs
-            + " | awk 'FNR==NR {reads[$1]||$0 ~ /@/;next} /^@/||($1 in reads) {print $0}' "
-            + ids
-            + " - "
-            # + " | awk '{if($0 ~ /^@/ || $6 ~ /S/ || $6 ~ /H/) {print $0}}' "
-            + " | samtools view -Sb -"
-        )
-        subprocess.call(command, shell=True, stdout=output)
-    sort_index_bam(bam_tmp, bam_out, thread)
+# def subset_bam_ids(bam_in, bam_out, contigs, ids, thread):
+#     # subset bam file using read IDs
+#     # # https://bioinformatics.stackexchange.com/questions/3380/how-to-subset-a-bam-by-a-list-of-qnames
+#     bam_tmp = bam_out + ".tmp"
+#     with open(bam_tmp, "w") as output:
+#         command = (
+#             "samtools view -h "
+#             + bam_in
+#             + " "
+#             + contigs
+#             + " | awk 'FNR==NR {reads[$1]||$0 ~ /@/;next} /^@/||($1 in reads) {print $0}' "
+#             + ids
+#             + " - "
+#             # + " | awk '{if($0 ~ /^@/ || $6 ~ /S/ || $6 ~ /H/) {print $0}}' "
+#             + " | samtools view -Sb -"
+#         )
+#         subprocess.call(command, shell=True, stdout=output)
+#     sort_index_bam(bam_tmp, bam_out, thread)
 
 
 def repeatmask(ref, library, outdir, thread, augment=False):
@@ -437,10 +437,9 @@ def get_family_bed(args):
     outdir = args[4]
     mapper = args[5]
     contigs = args[6]
-    experiment = args[7]
-    tsd_max = args[8]
-    gap_max = args[9]
-    window = args[10]
+    tsd_max = args[7]
+    gap_max = args[8]
+    window = args[9]
 
     family_dir = os.path.join(outdir, family)
     mkdir(family_dir)
@@ -456,26 +455,17 @@ def get_family_bed(args):
     # step three: reads alignment to reference genome
     ms_bam = family_dir + "/" + family + ".ref.cigar.ms.bam"
     sm_bam = family_dir + "/" + family + ".ref.cigar.sm.bam"
-    if not experiment:
-        cigar_fq = family_dir + "/" + family + ".cigar.fastq"
-        bam2fastq(family_bam, cigar_fq)
-        # need to realign to TE cigar reads to masked ref
-        sm_fq = family_dir + "/" + family + ".te.cigar.sm.fastq"
-        extract_reads(cigar_fq, sm_ids, sm_fq)
-        ms_fq = family_dir + "/" + family + ".te.cigar.ms.fastq"
-        extract_reads(cigar_fq, ms_ids, ms_fq)
+    cigar_fq = family_dir + "/" + family + ".cigar.fastq"
+    bam2fastq(family_bam, cigar_fq)
+    # need to realign to TE cigar reads to masked ref
+    sm_fq = family_dir + "/" + family + ".te.cigar.sm.fastq"
+    extract_reads(cigar_fq, sm_ids, sm_fq)
+    ms_fq = family_dir + "/" + family + ".te.cigar.ms.fastq"
+    extract_reads(cigar_fq, ms_ids, ms_fq)
 
-        # map reads to masked reference genome
-        make_bam(fq=sm_fq, ref=ref_rm, thread=1, bam=sm_bam, mapper=mapper)
-        make_bam(fq=ms_fq, ref=ref_rm, thread=1, bam=ms_bam, mapper=mapper)
-    else:
-        # subset BAM using read IDs using awk way
-        subset_bam_ids(
-            bam_in=bam, bam_out=ms_bam, contigs=contigs, ids=ms_ids, thread=1
-        )
-        subset_bam_ids(
-            bam_in=bam, bam_out=sm_bam, contigs=contigs, ids=sm_ids, thread=1
-        )
+    # map reads to masked reference genome
+    make_bam(fq=sm_fq, ref=ref_rm, thread=1, bam=sm_bam, mapper=mapper)
+    make_bam(fq=ms_fq, ref=ref_rm, thread=1, bam=ms_bam, mapper=mapper)
 
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
