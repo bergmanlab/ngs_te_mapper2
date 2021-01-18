@@ -63,14 +63,20 @@ def get_args():
     optional.add_argument(
         "--af",
         action="store_true",
-        help="If provided then ngs_te_mapper2 will attempt to estimate allele frequency",
+        help="If provided then ngs_te_mapper will attempt to estimate allele frequency",
         required=False,
     )
     optional.add_argument(
-        "--tsd_max", type=int, help="maximum TSD size (default = 20) ", required=False
+        "--min_mapq",
+        type=int,
+        help="minimum mapping quality of alignment (default = 20) ",
+        required=False,
     )
     optional.add_argument(
-        "--gap_max", type=int, help="maximum gap size (default = 0) ", required=False
+        "--tsd_max", type=int, help="maximum TSD size (default = 25) ", required=False
+    )
+    optional.add_argument(
+        "--gap_max", type=int, help="maximum gap size (default = 5) ", required=False
     )
     optional.add_argument(
         "-m",
@@ -127,8 +133,11 @@ def get_args():
     if args.mapper is None:
         args.mapper = "bwa"
 
+    if args.min_mapq is None:
+        args.min_mapq = 20
+
     if args.tsd_max is None:
-        args.tsd_max = 20
+        args.tsd_max = 25
 
     if args.gap_max is None:
         args.gap_max = 5
@@ -169,6 +178,7 @@ def main():
         input_reference=args.reference,
         out_dir=tmp_dir,
     )
+    genome = get_genome_file(ref)
 
     if args.prefix:
         sample_prefix = args.prefix
@@ -248,6 +258,37 @@ def main():
         "Insertion candidate search finished in " + format_time(proc_time_candidate)
     )
 
+    # gather non-reference TE predictions
+    nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
+    pattern = "/*/*.nonref.bed"
+    bed_files = glob(family_dir + pattern, recursive=True)
+    merge_bed(bed_in=bed_files, bed_out=nonref_bed, genome=genome)
+    num_nonref = get_lines(nonref_bed)
+
+    # estimate allele frequency for non-reference TEs
+    if args.af and num_nonref != 0:
+        logging.info("Estimating non-reference insertion allele frequency...")
+        start_time_af = time.time()
+        af_bed = get_af(
+            nonref_bed,
+            ref,
+            fastq,
+            genome,
+            args.thread,
+            tmp_dir,
+            sample_prefix,
+            args.min_mapq,
+        )
+        if get_lines(af_bed) == num_nonref:
+            os.rename(af_bed, nonref_bed)
+        else:
+            print("Allele frequency estimation failed.")
+            sys.exit(1)
+        proc_time_af = time.time() - start_time_af
+        logging.info(
+            "Allele frequency estimation finished in " + format_time(proc_time_af)
+        )
+
     # gather reference TE predictions
     ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
     if rm_bed is not None:
@@ -257,31 +298,6 @@ def main():
     else:
         open(ref_bed, "w").close()
     num_ref = get_lines(ref_bed)
-
-    # gather non-reference TE predictions
-    nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
-    pattern = "/*/*.nonref.bed"
-    bed_files = glob(family_dir + pattern, recursive=True)
-    genome = get_genome_file(ref)
-    merge_bed(bed_in=bed_files, bed_out=nonref_bed, genome=genome)
-    num_nonref = get_lines(nonref_bed)
-
-    # estimate allele frequency for non-reference TEs
-    if args.af and num_nonref != 0:
-        logging.info("Estimating non-reference insertion allele frequency...")
-        start_time_af = time.time()
-        af_bed = get_af(
-            nonref_bed, ref, fastq, genome, args.thread, tmp_dir, sample_prefix
-        )
-        if get_lines(af_bed) == num_nonref:
-            os.rename(af_bed, nonref_bed)
-        else:
-            print("Allele frequency estimation failed.")
-            sys.exit(1)
-        proc_time_af = time.time() - start_time_af
-        logging.info(
-            "Allele frequency estimation finished in " + format_time(proc_time_align)
-        )
 
     # clean tmp files
     if not args.keep_files:

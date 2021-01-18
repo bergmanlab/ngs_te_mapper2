@@ -449,7 +449,16 @@ def get_genome_file(ref):
 
 
 def get_af(
-    bed, ref, reads, genome, thread, out_dir, sample_prefix, method="max", slop=150
+    bed,
+    ref,
+    reads,
+    genome,
+    thread,
+    out_dir,
+    sample_prefix,
+    min_mapq,
+    method="max",
+    slop=150,
 ):
     # create masked genome (only allow bases around non-ref TEs)
     expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
@@ -490,15 +499,15 @@ def get_af(
             cigar_offset = 10
 
             n_cigar1 = count_nonref_read(
-                samfile, chromosome, start - cigar_offset, start, "MS"
+                samfile, chromosome, start - cigar_offset, start, "MS", min_mapq
             )
             n_cigar2 = count_nonref_read(
-                samfile, chromosome, end, end + cigar_offset, "SM"
+                samfile, chromosome, end, end + cigar_offset, "SM", min_mapq
             )
 
             ref_offset = 5
             n_ref = count_ref_read(
-                samfile, chromosome, start - ref_offset, end + ref_offset
+                samfile, chromosome, start - ref_offset, end + ref_offset, min_mapq
             )
 
             try:
@@ -541,24 +550,26 @@ def get_af(
     return af_bed
 
 
-def count_nonref_read(samfile, chromosome, start, end, cigar_pattern):
+def count_nonref_read(samfile, chromosome, start, end, cigar_pattern, min_mapq):
     n_read = 0
     for read in samfile.fetch(chromosome, start, end):
-        pattern, offset = parse_cigar(read.cigar)
-        if pattern == cigar_pattern:
-            n_read = n_read + 1
+        if read.mapping_quality >= min_mapq:
+            pattern, offset = parse_cigar(read.cigar)
+            if pattern == cigar_pattern:
+                n_read = n_read + 1
     return n_read
 
 
-def count_ref_read(samfile, chromosome, start, end):
+def count_ref_read(samfile, chromosome, start, end, min_mapq):
     n_read = 0
     for read in samfile.fetch(chromosome, start, end):
-        pattern, offset = parse_cigar(read.cigar)
-        if pattern == "M":
-            read_start = read.reference_start
-            read_end = read_start + offset
-            if read_start <= start and read_end >= end:
-                n_read = n_read + 1
+        if read.mapping_quality >= min_mapq:
+            pattern, offset = parse_cigar(read.cigar)
+            if pattern == "M":
+                read_start = read.reference_start
+                read_end = read_start + offset
+                if read_start <= start and read_end >= end:
+                    n_read = n_read + 1
     return n_read
 
 
