@@ -380,6 +380,7 @@ def get_family_bed(args):
     tsd_max = args[7]
     gap_max = args[8]
     window = args[9]
+    min_mapq = args[10]
 
     family_dir = os.path.join(outdir, family)
     mkdir(family_dir)
@@ -415,14 +416,14 @@ def get_family_bed(args):
 
     sm_bed_refined = family_dir + "/" + family + ".refined.sm.bed"
     if os.path.isfile(sm_bed) and os.stat(sm_bed).st_size != 0:
-        refine_breakpoint(sm_bed_refined, sm_bed, sm_bam, "SM")
+        refine_breakpoint(sm_bed_refined, sm_bed, sm_bam, "SM", min_mapq)
 
     ms_bed = family_dir + "/" + family + ".ms.bed"
     get_cluster(ms_bam, ms_bed, cutoff=1, window=window)
 
     ms_bed_refined = family_dir + "/" + family + ".refined.ms.bed"
     if os.path.isfile(ms_bed) and os.stat(ms_bed).st_size != 0:
-        refine_breakpoint(ms_bed_refined, ms_bed, ms_bam, "MS")
+        refine_breakpoint(ms_bed_refined, ms_bed, ms_bam, "MS", min_mapq)
 
     if (
         rm_bed is not None
@@ -592,7 +593,7 @@ def parse_cigar(cigar):
     return pattern, offset
 
 
-def refine_breakpoint(new_bed, old_bed, bam, cigar_type):
+def refine_breakpoint(new_bed, old_bed, bam, cigar_type, min_mapq):
     samfile = pysam.AlignmentFile(bam, "rb")
     with open(old_bed, "r") as input, open(new_bed, "w") as output:
         for line in input:
@@ -604,29 +605,22 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type):
             breakpoints = dict()
             cigars = {"SM": 0, "MS": 0}
             for read in samfile.fetch(chromosome, cov_start, cov_end):
-                ref_start = read.reference_start
-                pattern, offset = parse_cigar(read.cigar)
-                # if offset > 150 or offset < -150:
-                #     print("strange offset:" + str(offset) + "\n")
-                #     print(read.cigar)
-                #     print(read.reference_start)
-                #     print(read.query_name)
-                if pattern == "SM":
-                    cigars["SM"] = cigars["SM"] + 1
-                    breakpoint = ref_start
-                elif pattern == "MS":
-                    cigars["MS"] = cigars["MS"] + 1
-                    breakpoint = ref_start + offset
-                else:
-                    # print("weird pattern:" + pattern)
-                    # print(read.query_name)
-                    # print(read.cigar)
-                    breakpoint = None
-                if breakpoint:
-                    if breakpoint in breakpoints:
-                        breakpoints[breakpoint] = breakpoints[breakpoint] + 1
+                if read.mapping_quality >= min_mapq:
+                    ref_start = read.reference_start
+                    pattern, offset = parse_cigar(read.cigar)
+                    if pattern == "SM":
+                        cigars["SM"] = cigars["SM"] + 1
+                        breakpoint = ref_start
+                    elif pattern == "MS":
+                        cigars["MS"] = cigars["MS"] + 1
+                        breakpoint = ref_start + offset
                     else:
-                        breakpoints[breakpoint] = 1
+                        breakpoint = None
+                    if breakpoint:
+                        if breakpoint in breakpoints:
+                            breakpoints[breakpoint] = breakpoints[breakpoint] + 1
+                        else:
+                            breakpoints[breakpoint] = 1
 
             cigar_joint = get_keys(cigars)
             breakpoint_joint = get_keys(breakpoints)

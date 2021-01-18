@@ -242,6 +242,7 @@ def main():
             args.tsd_max,
             args.gap_max,
             args.window,
+            args.min_mapq,
         ]
         family_arguments.append(argument)
     try:
