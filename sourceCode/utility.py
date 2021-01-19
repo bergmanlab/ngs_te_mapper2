@@ -418,6 +418,10 @@ def get_family_bed(args):
     if os.path.isfile(sm_bed) and os.stat(sm_bed).st_size != 0:
         refine_breakpoint(sm_bed_refined, sm_bed, sm_bam, "SM", min_mapq)
 
+    sm_bed_unique = family_dir + "/" + family + ".unique.sm.bed"
+    if os.path.isfile(sm_bed_refined) and os.stat(sm_bed_refined).st_size != 0:
+        bed_rm_dup(sm_bed_refined, sm_bed_unique)
+
     ms_bed = family_dir + "/" + family + ".ms.bed"
     get_cluster(ms_bam, ms_bed, cutoff=1, window=window)
 
@@ -425,16 +429,72 @@ def get_family_bed(args):
     if os.path.isfile(ms_bed) and os.stat(ms_bed).st_size != 0:
         refine_breakpoint(ms_bed_refined, ms_bed, ms_bam, "MS", min_mapq)
 
+    ms_bed_unique = family_dir + "/" + family + ".unique.ms.bed"
+    if os.path.isfile(ms_bed_refined) and os.stat(ms_bed_refined).st_size != 0:
+        bed_rm_dup(ms_bed_refined, ms_bed_unique)
+
     if (
         rm_bed is not None
-        and os.path.isfile(sm_bed_refined)
-        and os.path.isfile(ms_bed_refined)
+        and os.path.isfile(sm_bed_unique)
+        and os.path.isfile(ms_bed_unique)
     ):
-        get_ref(sm_bed_refined, ms_bed_refined, rm_bed, family_dir, family)
+        get_ref(sm_bed_unique, ms_bed_unique, rm_bed, family_dir, family)
 
     # get insertion candidate
-    if os.path.isfile(sm_bed_refined) and os.path.isfile(ms_bed_refined):
-        get_nonref(sm_bed_refined, ms_bed_refined, family_dir, family, tsd_max, gap_max)
+    if os.path.isfile(sm_bed_unique) and os.path.isfile(ms_bed_unique):
+        get_nonref(sm_bed_unique, ms_bed_unique, family_dir, family, tsd_max, gap_max)
+
+
+def bed_rm_overlap(bed_in, bed_out):
+    bed_merge = bed_in + ".redundant"
+    with open(bed_merge, "w") as output:
+        command = 'bedtools merge -d 0 -o collapse -c 2,3,4,5,6 -delim "," -i ' + bed_in
+        subprocess.call(command, shell=True, stdout=output)
+
+    with open(bed_merge, "r") as input, open(bed_out, "w") as output:
+        for line in input:
+            entry = line.replace("\n", "").split("\t")
+            if "," not in entry[3]:
+                chromosome = entry[0]
+                start = entry[3]
+                end = entry[4]
+                info = entry[5]
+                score = entry[6]
+                strand = entry[7]
+                out_line = "\t".join([chromosome, start, end, info, score, strand])
+                output.write(out_line + "\n")
+    os.remove(bed_merge)
+
+
+def bed_rm_duplicate(bed_in, bed_out):
+    with open(bed_merge, "w") as output:
+        command = "cat " + bed_in + " | sort | uniq"
+        subprocess.call("cat ", shell=True, stdout=output)
+
+
+def bed_rm_dup(bed_in, bed_out):
+    bed_merge = bed_in + ".merge.tmp"
+    with open(bed_merge, "w") as output:
+        command = 'bedtools merge -d 0 -o collapse -c 2,3,4 -delim "," -i ' + bed_in
+        subprocess.call(command, shell=True, stdout=output)
+
+    with open(bed_merge, "r") as input, open(bed_out, "w") as output:
+        for line in input:
+            entry = line.replace("\n", "").split("\t")
+            chromosome = entry[0]
+            if "," in entry[3]:
+                score = entry[5].split(",")
+                score = [int(i) for i in score]
+                idx = score.index(max(score))
+                start = entry[3].split(",")[idx]
+                end = entry[4].split(",")[idx]
+                score = entry[5].split(",")[idx]
+            else:
+                start = entry[3]
+                end = entry[4]
+                score = entry[5]
+            out_line = "\t".join([chromosome, start, end, score])
+            output.write(out_line + "\n")
 
 
 def get_genome_file(ref):
@@ -601,7 +661,6 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type, min_mapq):
             chromosome = entry[0]
             cov_start = int(entry[1])
             cov_end = int(entry[2])
-            cov_count = entry[3]
             breakpoints = dict()
             cigars = {"SM": 0, "MS": 0}
             for read in samfile.fetch(chromosome, cov_start, cov_end):
@@ -744,25 +803,34 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
         # os.remove(overlap)
 
 
-def merge_bed(bed_in, bed_out, genome):
-    # merge bed files from all families, check overlap, merge or remove entried if necessary
-    bed_out_tmp = bed_out + ".tmp"
-    with open(bed_out_tmp, "w") as output:
+def merge_bed(bed_in, bed_out, genome, filter_method="overlap"):
+    # merge bed files from all families, check overlap, merge or remove entries if necessary
+    bed_merge = bed_out + ".merge.tmp"
+    with open(bed_merge, "w") as output:
         for bed in bed_in:
             if os.path.isfile(bed) and os.stat(bed).st_size != 0:
                 with open(bed, "r") as input:
                     for line in input:
                         output.write(line)
 
-    if get_lines(bed_out_tmp) != 0:
+    if get_lines(bed_merge) != 0:
         # sort bed files
-        with open(bed_out, "w") as output:
+        bed_sort = bed_out + ".merge.sort.tmp"
+        with open(bed_sort, "w") as output:
             subprocess.call(
-                ["bedtools", "sort", "-i", bed_out_tmp, "-g", genome], stdout=output
+                ["bedtools", "sort", "-i", bed_merge, "-g", genome], stdout=output
             )
-        os.remove(bed_out_tmp)
+        # os.remove(bed_merge)
+
+        # remove entries if overlap with multiple families
+        if filter_method == "overlap":
+            bed_rm_overlap(bed_sort, bed_out)
+        else:
+            bed_rm_duplicate(bed_sort, bed_out)
+        # os.remove(bed_sort)
+
     else:
-        os.rename(bed_out_tmp, bed_out)
+        os.rename(bed_merge, bed_out)
 
 
 def parse_rm_out(rm_gff, bed):
@@ -827,9 +895,13 @@ def get_ref(bed1, bed2, rm_bed, out_dir, family, window=50):
                     stdout=output,
                 )
         if os.path.isfile(ref_sm) and os.path.isfile(ref_ms):
-            ref_both = out_dir + "/" + family + ".ref.bed"
+            ref_both = out_dir + "/" + family + ".reference.bed"
             with open(ref_both, "w") as output:
                 subprocess.call(
                     ["bedtools", "intersect", "-a", ref_sm, "-b", ref_ms, "-u"],
                     stdout=output,
                 )
+        if os.path.isfile(ref_sm):
+            os.remove(ref_sm)
+        if os.path.isfile(ref_ms):
+            os.remove(ref_ms)

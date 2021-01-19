@@ -263,7 +263,9 @@ def main():
     nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
-    merge_bed(bed_in=bed_files, bed_out=nonref_bed, genome=genome)
+    merge_bed(
+        bed_in=bed_files, bed_out=nonref_bed, genome=genome, filter_method="overlap"
+    )
     num_nonref = get_lines(nonref_bed)
 
     # estimate allele frequency for non-reference TEs
@@ -293,9 +295,11 @@ def main():
     # gather reference TE predictions
     ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
     if rm_bed is not None:
-        pattern = "/*/*.ref.bed"
+        pattern = "/*/*.reference.bed"
         bed_files = glob(family_dir + pattern, recursive=True)
-        merge_bed(bed_in=bed_files, bed_out=ref_bed, genome=genome)
+        merge_bed(
+            bed_in=bed_files, bed_out=ref_bed, genome=genome, filter_method="duplicate"
+        )
     else:
         open(ref_bed, "w").close()
     num_ref = get_lines(ref_bed)
