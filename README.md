@@ -81,15 +81,15 @@ python3 ../sourceCode/ngs_te_mapper.py -o test_output -f reads.fastq -r ref_1kb.
 # <a name="run"></a> Usage
 ## Command line help page
 ```
-usage: ngs_te_mapper.py [-h] -f READS [READS ...] -l LIBRARY -r REFERENCE
-                        [-n REGION] [-w WINDOW] [--experiment]
+usage: ngs_te_mapper.py [-h] -f READS -l LIBRARY -r REFERENCE [-n REGION]
+                        [-w WINDOW] [--af] [--min_mapq MIN_MAPQ]
                         [--tsd_max TSD_MAX] [--gap_max GAP_MAX] [-m MAPPER]
                         [-t THREAD] [-o OUT] [-p PREFIX] [-k]
 
 Script to detect non-reference TEs from single end short read data
 
 required arguments:
-  -f READS [READS ...], --reads READS [READS ...]
+  -f READS, --reads READS
                         raw reads in fastq or fastq.gz format, separated by
                         comma
   -l LIBRARY, --library LIBRARY
@@ -103,12 +103,12 @@ optional arguments:
                         region to filter
   -w WINDOW, --window WINDOW
                         merge window for identifying TE clusters (default =
-                        100)
-  --experiment          If provided then reads will be mapped to masked
-                        augmented reference in the first step (by default
-                        reads will be mapped to TE library)
-  --tsd_max TSD_MAX     maximum TSD size (default = 20)
-  --gap_max GAP_MAX     maximum gap size (default = 0)
+                        10)
+  --af                  If provided then ngs_te_mapper will attempt to
+                        estimate allele frequency
+  --min_mapq MIN_MAPQ   minimum mapping quality of alignment (default = 20)
+  --tsd_max TSD_MAX     maximum TSD size (default = 25)
+  --gap_max GAP_MAX     maximum gap size (default = 5)
   -m MAPPER, --mapper MAPPER
                         read alignment program (default = 'bwa')
   -t THREAD, --thread THREAD
@@ -133,8 +133,8 @@ Column | Description
 chromosome | The chromosome name where the TE insertion occurred
 position | Starting breakpoint position of the TE insertions.
 end | Ending breakpoint position of the TE insertions.
-family | TE family and TSD info, separated by '\|'.
-support | Average coverage of reads supporting the TE insertion ('.' if insertion is reference).
+info | Includes TE family, TSD, Allele Frequency, 3' support, 5' support and reference reads. Separated by '\|'.
+score | '.'
 strand | Strand that TE insertion occurs
 
 ## Log file output by ngs_te_mapper
