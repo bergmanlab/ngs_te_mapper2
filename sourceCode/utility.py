@@ -467,9 +467,9 @@ def bed_rm_overlap(bed_in, bed_out):
 
 
 def bed_rm_duplicate(bed_in, bed_out):
-    with open(bed_merge, "w") as output:
+    with open(bed_out, "w") as output:
         command = "cat " + bed_in + " | sort | uniq"
-        subprocess.call("cat ", shell=True, stdout=output)
+        subprocess.call(command, shell=True, stdout=output)
 
 
 def bed_rm_dup(bed_in, bed_out):
