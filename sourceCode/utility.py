@@ -69,7 +69,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
             fastq = read
     else:
         prefix = get_prefix(reads_copy[0])
-        fastq = os.path.join(out_dir, prefix + ".fastq")
+        fastq = os.path.join(out_dir, prefix + ".merge.fastq")
         with open(fastq, "w") as output:
             for read in reads_copy:
                 if ".gz" in read:
@@ -521,29 +521,29 @@ def get_af(
     method="max",
     slop=150,
 ):
-    # # create masked genome (only allow bases around non-ref TEs)
-    # expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
-    # with open(expand_bed, "w") as output:
-    #     subprocess.call(
-    #         ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
-    #         stdout=output,
-    #     )
+    # create masked genome (only allow bases around non-ref TEs)
+    expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
+    with open(expand_bed, "w") as output:
+        subprocess.call(
+            ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
+            stdout=output,
+        )
 
-    # complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
-    # with open(complement_bed, "w") as output:
-    #     subprocess.call(
-    #         ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
-    #     )
+    complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
+    with open(complement_bed, "w") as output:
+        subprocess.call(
+            ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
+        )
 
-    # masked_ref = ref + ".nonref.masked"
-    # subprocess.call(
-    #     ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
-    # )
-    # subprocess.call(["bwa", "index", masked_ref])
-    subprocess.call(["bwa", "index", ref])
+    masked_ref = ref + ".nonref.masked"
+    subprocess.call(
+        ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
+    )
+    subprocess.call(["bwa", "index", masked_ref])
+    # subprocess.call(["bwa", "index", ref])
     # map raw reads to reference genome
     bam = out_dir + "/" + sample_prefix + ".nonref.bam"
-    make_bam(fq=reads, ref=ref, thread=thread, bam=bam)
+    make_bam(fq=reads, ref=masked_ref, thread=thread, bam=bam)
 
     # for each site, figure out AF
     af_bed = bed.replace(".bed", ".af.bed")
@@ -821,14 +821,14 @@ def merge_bed(bed_in, bed_out, genome, filter_method="overlap"):
             subprocess.call(
                 ["bedtools", "sort", "-i", bed_merge, "-g", genome], stdout=output
             )
-        # os.remove(bed_merge)
+        os.remove(bed_merge)
 
         # remove entries if overlap with multiple families
         if filter_method == "overlap":
             bed_rm_overlap(bed_sort, bed_out)
         else:
             bed_rm_duplicate(bed_sort, bed_out)
-        # os.remove(bed_sort)
+        os.remove(bed_sort)
 
     else:
         os.rename(bed_merge, bed_out)
