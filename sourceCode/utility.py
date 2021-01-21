@@ -521,29 +521,29 @@ def get_af(
     method="max",
     slop=150,
 ):
-    # create masked genome (only allow bases around non-ref TEs)
-    expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
-    with open(expand_bed, "w") as output:
-        subprocess.call(
-            ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
-            stdout=output,
-        )
+    # # create masked genome (only allow bases around non-ref TEs)
+    # expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
+    # with open(expand_bed, "w") as output:
+    #     subprocess.call(
+    #         ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
+    #         stdout=output,
+    #     )
 
-    complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
-    with open(complement_bed, "w") as output:
-        subprocess.call(
-            ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
-        )
+    # complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
+    # with open(complement_bed, "w") as output:
+    #     subprocess.call(
+    #         ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
+    #     )
 
-    masked_ref = ref + ".nonref.masked"
-    subprocess.call(
-        ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
-    )
-    subprocess.call(["bwa", "index", masked_ref])
-    # subprocess.call(["bwa", "index", ref])
+    # masked_ref = ref + ".nonref.masked"
+    # subprocess.call(
+    #     ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
+    # )
+    # subprocess.call(["bwa", "index", masked_ref])
+    subprocess.call(["bwa", "index", ref])
     # map raw reads to reference genome
     bam = out_dir + "/" + sample_prefix + ".nonref.bam"
-    make_bam(fq=reads, ref=masked_ref, thread=thread, bam=bam)
+    make_bam(fq=reads, ref=ref, thread=thread, bam=bam)
 
     # for each site, figure out AF
     af_bed = bed.replace(".bed", ".af.bed")
