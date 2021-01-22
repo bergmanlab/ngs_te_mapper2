@@ -558,13 +558,31 @@ def get_af(
             score = entry[4]
             strand = entry[5]
 
-            cigar_offset = 10
+            breakpoint_offset = 10
+
+            tsd = int(info.split("|")[1])
+            if tsd <= 0:
+                SM_breakpoint = start
+                MS_breakpoint = end
+            else:
+                SM_breakpoint = end
+                MS_breakpoint = start
 
             n_cigar1 = count_nonref_read(
-                samfile, chromosome, start - cigar_offset, start, "MS", min_mapq
+                samfile,
+                chromosome,
+                MS_breakpoint - breakpoint_offset,
+                MS_breakpoint,
+                "MS",
+                min_mapq,
             )
             n_cigar2 = count_nonref_read(
-                samfile, chromosome, end, end + cigar_offset, "SM", min_mapq
+                samfile,
+                chromosome,
+                SM_breakpoint,
+                SM_breakpoint + breakpoint_offset,
+                "SM",
+                min_mapq,
             )
 
             ref_offset = 5
@@ -612,13 +630,28 @@ def get_af(
     return af_bed
 
 
-def count_nonref_read(samfile, chromosome, start, end, cigar_pattern, min_mapq):
+def count_nonref_read(samfile, chromosome, start, end, cigar_filter, min_mapq):
     n_read = 0
+    breakpoint_error = 3
     for read in samfile.fetch(chromosome, start, end):
         if read.mapping_quality >= min_mapq:
             pattern, offset = parse_cigar(read.cigar)
-            if pattern == cigar_pattern:
+            if pattern == cigar_filter:
                 n_read = n_read + 1
+            elif pattern == "SMS" and cigar_filter == "SM":
+                read_breakpoint = read.reference_start
+                if (
+                    read_breakpoint >= start - breakpoint_error
+                    and read_breakpoint <= start + breakpoint_error
+                ):
+                    n_read = n_read + 1
+            elif pattern == "SMS" and cigar_filter == "MS":
+                read_breakpoint = read.reference_start + offset
+                if (
+                    read_breakpoint >= end - breakpoint_error
+                    and read_breakpoint <= end + breakpoint_error
+                ):
+                    n_read = n_read + 1
     return n_read
 
 
