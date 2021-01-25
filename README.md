@@ -83,8 +83,9 @@ python3 ../sourceCode/ngs_te_mapper.py -o test_output -f reads.fastq -r ref_1kb.
 ```
 usage: ngs_te_mapper.py [-h] -f READS -l LIBRARY -r REFERENCE [-n REGION]
                         [-w WINDOW] [--af] [--min_mapq MIN_MAPQ]
-                        [--tsd_max TSD_MAX] [--gap_max GAP_MAX] [-m MAPPER]
-                        [-t THREAD] [-o OUT] [-p PREFIX] [-k]
+                        [--min_af MIN_AF] [--tsd_max TSD_MAX]
+                        [--gap_max GAP_MAX] [-m MAPPER] [-t THREAD] [-o OUT]
+                        [-p PREFIX] [-k]
 
 Script to detect non-reference TEs from single end short read data
 
@@ -107,6 +108,7 @@ optional arguments:
   --af                  If provided then ngs_te_mapper will attempt to
                         estimate allele frequency
   --min_mapq MIN_MAPQ   minimum mapping quality of alignment (default = 20)
+  --min_af MIN_AF       minimum allele frequency (default = 0.1)
   --tsd_max TSD_MAX     maximum TSD size (default = 25)
   --gap_max GAP_MAX     maximum gap size (default = 5)
   -m MAPPER, --mapper MAPPER

@@ -73,6 +73,12 @@ def get_args():
         required=False,
     )
     optional.add_argument(
+        "--min_af",
+        type=float,
+        help="minimum allele frequency (default = 0.1) ",
+        required=False,
+    )
+    optional.add_argument(
         "--tsd_max", type=int, help="maximum TSD size (default = 25) ", required=False
     )
     optional.add_argument(
@@ -135,6 +141,9 @@ def get_args():
 
     if args.min_mapq is None:
         args.min_mapq = 20
+    
+    if args.min_af is None:
+        args.min_af = 0.1
 
     if args.tsd_max is None:
         args.tsd_max = 25
@@ -281,6 +290,7 @@ def main():
             tmp_dir,
             sample_prefix,
             args.min_mapq,
+            args.min_af,
         )
         if get_lines(af_bed) == num_nonref:
             os.rename(af_bed, nonref_bed)

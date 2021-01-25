@@ -518,6 +518,7 @@ def get_af(
     out_dir,
     sample_prefix,
     min_mapq,
+    min_af,
     method="max",
     slop=150,
 ):
@@ -585,7 +586,7 @@ def get_af(
                 min_mapq,
             )
 
-            ref_offset = 5
+            ref_offset = 3
             n_ref = count_ref_read(
                 samfile, chromosome, start - ref_offset, end + ref_offset, min_mapq
             )
@@ -604,29 +605,28 @@ def get_af(
                 if af1 and af2:
                     af = round(max(af1, af2), 2)
                 elif af1:
-                    af = af1
+                    af = round(af1, 2)
                 elif af2:
-                    af = af2
+                    af = round(af2, 2)
                 else:
                     af = "NA"
             else:
                 if af1 and af2:
                     af = round(mean([af1, af2]), 2)
                 elif af1:
-                    af = af1
+                    af = round(af1, 2)
                 elif af2:
-                    af = af2
+                    af = round(af2, 2)
                 else:
                     af = "NA"
-
-            # output
-            info_new = "|".join(
-                [info, str(af), str(n_cigar1), str(n_cigar2), str(n_ref)]
-            )
-            out_line = "\t".join(
-                [chromosome, str(start), str(end), info_new, score, strand]
-            )
-            output.write(out_line + "\n")
+            if af is not None and af >= min_af:
+                info_new = "|".join(
+                    [info, str(af), str(n_cigar1), str(n_cigar2), str(n_ref)]
+                )
+                out_line = "\t".join(
+                    [chromosome, str(start), str(end), info_new, score, strand]
+                )
+                output.write(out_line + "\n")
     return af_bed
 
 
