@@ -510,7 +510,8 @@ def get_genome_file(ref):
 
 
 def get_af(
-    bed,
+    bed_out,
+    bed_in,
     ref,
     reads,
     genome,
@@ -526,7 +527,7 @@ def get_af(
     expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
     with open(expand_bed, "w") as output:
         subprocess.call(
-            ["bedtools", "slop", "-i", bed, "-g", genome, "-b", str(slop)],
+            ["bedtools", "slop", "-i", bed_in, "-g", genome, "-b", str(slop)],
             stdout=output,
         )
 
@@ -541,15 +542,13 @@ def get_af(
         ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
     )
     subprocess.call(["bwa", "index", masked_ref])
-    # subprocess.call(["bwa", "index", ref])
     # map raw reads to reference genome
     bam = out_dir + "/" + sample_prefix + ".nonref.bam"
     make_bam(fq=reads, ref=masked_ref, thread=thread, bam=bam)
 
     # for each site, figure out AF
-    af_bed = bed.replace(".bed", ".af.bed")
     samfile = pysam.AlignmentFile(bam, "rb")
-    with open(bed, "r") as input, open(af_bed, "w") as output:
+    with open(bed_in, "r") as input, open(bed_out, "w") as output:
         for line in input:
             entry = line.replace("\n", "").split("\t")
             chromosome = entry[0]
@@ -619,15 +618,15 @@ def get_af(
                     af = round(af2, 2)
                 else:
                     af = "NA"
-            if af is not None and af >= min_af:
-                info_new = "|".join(
-                    [info, str(af), str(n_cigar1), str(n_cigar2), str(n_ref)]
-                )
-                out_line = "\t".join(
-                    [chromosome, str(start), str(end), info_new, score, strand]
-                )
-                output.write(out_line + "\n")
-    return af_bed
+            if af != "NA":
+                if af >= min_af:
+                    info_new = "|".join(
+                        [info, str(af), str(n_cigar1), str(n_cigar2), str(n_ref)]
+                    )
+                    out_line = "\t".join(
+                        [chromosome, str(start), str(end), info_new, score, strand]
+                    )
+                    output.write(out_line + "\n")
 
 
 def count_nonref_read(samfile, chromosome, start, end, cigar_filter, min_mapq):

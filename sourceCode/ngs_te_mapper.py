@@ -61,12 +61,6 @@ def get_args():
         required=False,
     )
     optional.add_argument(
-        "--af",
-        action="store_true",
-        help="If provided then ngs_te_mapper will attempt to estimate allele frequency",
-        required=False,
-    )
-    optional.add_argument(
         "--min_mapq",
         type=int,
         help="minimum mapping quality of alignment (default = 20) ",
@@ -141,7 +135,7 @@ def get_args():
 
     if args.min_mapq is None:
         args.min_mapq = 20
-    
+
     if args.min_af is None:
         args.min_af = 0.1
 
@@ -269,33 +263,35 @@ def main():
     )
 
     # gather non-reference TE predictions
-    nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
+    nonref_tmp = tmp_dir + "/" + sample_prefix + ".nonref.tmp.bed"
     pattern = "/*/*.nonref.bed"
     bed_files = glob(family_dir + pattern, recursive=True)
     merge_bed(
-        bed_in=bed_files, bed_out=nonref_bed, genome=genome, filter_method="overlap"
+        bed_in=bed_files, bed_out=nonref_tmp, genome=genome, filter_method="overlap"
     )
-    num_nonref = get_lines(nonref_bed)
+    num_nonref = get_lines(nonref_tmp)
 
     # estimate allele frequency for non-reference TEs
-    if args.af and num_nonref != 0:
+    if num_nonref != 0:
+        nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
         logging.info("Estimating non-reference insertion allele frequency...")
         start_time_af = time.time()
-        af_bed = get_af(
-            nonref_bed,
-            ref,
-            fastq,
-            genome,
-            args.thread,
-            tmp_dir,
-            sample_prefix,
-            args.min_mapq,
-            args.min_af,
-        )
-        if get_lines(af_bed) == num_nonref:
-            os.rename(af_bed, nonref_bed)
-        else:
-            print("Allele frequency estimation failed.")
+        try:
+            af_bed = get_af(
+                nonref_bed,
+                nonref_tmp,
+                ref,
+                fastq,
+                genome,
+                args.thread,
+                tmp_dir,
+                sample_prefix,
+                args.min_mapq,
+                args.min_af,
+            )
+        except Exception as e:
+            print(e)
+            print("Allele frequency estimation failed, exiting...")
             sys.exit(1)
         proc_time_af = time.time() - start_time_af
         logging.info(
