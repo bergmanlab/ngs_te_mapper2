@@ -297,6 +297,11 @@ def main():
         logging.info(
             "Allele frequency estimation finished in " + format_time(proc_time_af)
         )
+        num_nonref = get_lines(nonref_bed)
+        if num_nonref == 0:
+            open(nonref_bed, "w").close()
+    else:
+        open(nonref_bed, "w").close()
 
     # gather reference TE predictions
     ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
