@@ -22,6 +22,8 @@ In the second stage, unmodified junction reads on each side of TE identified in 
 
 Non-reference TE insertion sites are annotated as the span of TSD on zero-based, half-open coordinates and orientation is assigned in the strand field, following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](http://www.landesbioscience.com/journals/mge/article/19479/). 
 
+ngs_te_mapper also includes a third stage mapping procedure to estimate the allele frequency of the insertion. In this stage the raw reads are used to query against the candidate-masked reference genome (all the non-candidate insertion regions are hard-masked). For each non-reference TE insertion candidate, 'Junction reads' covering 5' and 3' side of insertion were counted as number of soft-clipped reads overlapping 10bp window on 5' and 3' side of TSD, respectively. 'Reference reads' were counted as number of non-soft-clipped reads spanning the TSD with at least 3bp extension on both side. The allele frequency was estimated as max(5' Junction reads, 3' Junction reads)/'Reference reads'.
+
 Reference TE insertions are detected using a similar strategy to non-reference insertions, independently of any reference TE annotation. The first stage in detecting reference TE insertions is identical to the first stage of detecting non-reference TE insertions described above. The second stage in identifying reference TE insertions involves alignment of the renamed, but otherwise unmodified, junction reads to the reference genome. Alignments of the complete junction read (i.e. non-TE and TE components) are clustered to identify the two ends of the reference TE insertion. The orientation of the reference TE is then determined from the relative orientation of alignments of the junction reads to the reference genome and TE library.
 
 # <a name="install"></a> Installation
@@ -82,10 +84,9 @@ python3 ../sourceCode/ngs_te_mapper.py -o test_output -f reads.fastq -r ref_1kb.
 ## Command line help page
 ```
 usage: ngs_te_mapper.py [-h] -f READS -l LIBRARY -r REFERENCE [-n REGION]
-                        [-w WINDOW] [--af] [--min_mapq MIN_MAPQ]
-                        [--min_af MIN_AF] [--tsd_max TSD_MAX]
-                        [--gap_max GAP_MAX] [-m MAPPER] [-t THREAD] [-o OUT]
-                        [-p PREFIX] [-k]
+                        [-w WINDOW] [--min_mapq MIN_MAPQ] [--min_af MIN_AF]
+                        [--tsd_max TSD_MAX] [--gap_max GAP_MAX] [-m MAPPER]
+                        [-t THREAD] [-o OUT] [-p PREFIX] [-k]
 
 Script to detect non-reference TEs from single end short read data
 
@@ -105,8 +106,6 @@ optional arguments:
   -w WINDOW, --window WINDOW
                         merge window for identifying TE clusters (default =
                         10)
-  --af                  If provided then ngs_te_mapper will attempt to
-                        estimate allele frequency
   --min_mapq MIN_MAPQ   minimum mapping quality of alignment (default = 20)
   --min_af MIN_AF       minimum allele frequency (default = 0.1)
   --tsd_max TSD_MAX     maximum TSD size (default = 25)
