@@ -277,7 +277,7 @@ def main():
         logging.info("Estimating non-reference insertion allele frequency...")
         start_time_af = time.time()
         try:
-            af_bed = get_af(
+            get_af(
                 nonref_bed,
                 nonref_tmp,
                 ref,
