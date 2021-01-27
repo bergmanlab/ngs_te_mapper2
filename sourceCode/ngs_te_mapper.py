@@ -272,8 +272,8 @@ def main():
     num_nonref = get_lines(nonref_tmp)
 
     # estimate allele frequency for non-reference TEs
+    nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
     if num_nonref != 0:
-        nonref_bed = args.out + "/" + sample_prefix + ".nonref.bed"
         logging.info("Estimating non-reference insertion allele frequency...")
         start_time_af = time.time()
         try:
