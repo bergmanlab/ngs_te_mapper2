@@ -1,4 +1,4 @@
-name: ngs_te_mapper
+name: ngs_te_mapper2
 channels:
   - bioconda
   - conda-forge
