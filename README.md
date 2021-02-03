@@ -13,6 +13,10 @@ ngs_te_mapper2 is a re-implementation of the method for detecting transposable e
 
 Non-reference TE insertions are detected using a three-stage process that relies on the presence of target site duplications (TSDs) in the region flanking the TE insertion. Non-reference TE insertion sites are annotated as the span of TSD on zero-based, half-open coordinates and orientation is assigned in the strand field, following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](http://www.landesbioscience.com/journals/mge/article/19479/). 
 
+<p align="center">
+<img src="https://raw.githubusercontent.com/bergmanlab/ngs_te_mapper2/master/img/ngs_te_mapper2.png?raw=true"/>
+</p>
+
 In the first stage, all reads from a whole genome shotgun sequence dataset are queried against a library of TE sequences. 'Junction reads' that span the start/end of TE and genomic flanking sequences are retained. Such reads are often referred as 'split-reads', although in reality these reads are not split in the resequenced genome.
 
 In the second stage, junction reads on each side of TE identified in the first stage are separately aligned to a reference genome that is hardmasked using the same TE library from stage one. Genome-wide coverage profiles are computed and genomic intervals with enriched coverage that represents 5' and 3' clusters of junction reads are annotated in bed format. Regions of overlap between intervals of 5' and 3' clusters of junction reads define the locations of the TSDs for candidate non-reference TE insertions. The orientation of the TE is determined from the relative orientation of alignments of the junction reads to the reference genome and TE library.
