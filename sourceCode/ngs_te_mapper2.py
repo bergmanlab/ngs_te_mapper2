@@ -280,7 +280,7 @@ def main():
             get_af(
                 nonref_bed,
                 nonref_tmp,
-                ref,
+                ref_modified,
                 fastq,
                 genome,
                 args.thread,

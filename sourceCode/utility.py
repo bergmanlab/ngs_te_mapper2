@@ -475,7 +475,7 @@ def bed_rm_duplicate(bed_in, bed_out):
 def bed_rm_dup(bed_in, bed_out):
     bed_merge = bed_in + ".merge.tmp"
     with open(bed_merge, "w") as output:
-        command = 'bedtools merge -d 0 -o collapse -c 2,3,4 -delim "," -i ' + bed_in
+        command = 'bedtools merge -d 0 -o collapse -c 2,3,4,5,6 -delim "," -i ' + bed_in
         subprocess.call(command, shell=True, stdout=output)
 
     with open(bed_merge, "r") as input, open(bed_out, "w") as output:
@@ -489,11 +489,15 @@ def bed_rm_dup(bed_in, bed_out):
                 start = entry[3].split(",")[idx]
                 end = entry[4].split(",")[idx]
                 score = entry[5].split(",")[idx]
+                cigar = entry[6].split(",")[idx]
+                bp = entry[7].split(",")[idx]
             else:
                 start = entry[3]
                 end = entry[4]
                 score = entry[5]
-            out_line = "\t".join([chromosome, start, end, score])
+                cigar = entry[6]
+                bp = entry[7]
+            out_line = "\t".join([chromosome, start, end, score, cigar, bp])
             output.write(out_line + "\n")
 
 
@@ -523,28 +527,28 @@ def get_af(
     method="max",
     slop=150,
 ):
-    # create masked genome (only allow bases around non-ref TEs)
-    expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
-    with open(expand_bed, "w") as output:
-        subprocess.call(
-            ["bedtools", "slop", "-i", bed_in, "-g", genome, "-b", str(slop)],
-            stdout=output,
-        )
+    # # create masked genome (only allow bases around non-ref TEs)
+    # expand_bed = out_dir + "/" + sample_prefix + ".nonref.expand.bed"
+    # with open(expand_bed, "w") as output:
+    #     subprocess.call(
+    #         ["bedtools", "slop", "-i", bed_in, "-g", genome, "-b", str(slop)],
+    #         stdout=output,
+    #     )
 
-    complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
-    with open(complement_bed, "w") as output:
-        subprocess.call(
-            ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
-        )
+    # complement_bed = out_dir + "/" + sample_prefix + ".nonref.complement.bed"
+    # with open(complement_bed, "w") as output:
+    #     subprocess.call(
+    #         ["bedtools", "complement", "-i", expand_bed, "-g", genome], stdout=output
+    #     )
 
-    masked_ref = ref + ".nonref.masked"
-    subprocess.call(
-        ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
-    )
-    subprocess.call(["bwa", "index", masked_ref])
+    # masked_ref = ref + ".nonref.masked"
+    # subprocess.call(
+    #     ["bedtools", "maskfasta", "-fi", ref, "-bed", complement_bed, "-fo", masked_ref]
+    # )
+    # subprocess.call(["bwa", "index", masked_ref])
     # map raw reads to reference genome
     bam = out_dir + "/" + sample_prefix + ".nonref.bam"
-    make_bam(fq=reads, ref=masked_ref, thread=thread, bam=bam)
+    make_bam(fq=reads, ref=ref, thread=thread, bam=bam)
 
     # for each site, figure out AF
     samfile = pysam.AlignmentFile(bam, "rb")
@@ -694,7 +698,8 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type, min_mapq):
             chromosome = entry[0]
             cov_start = int(entry[1])
             cov_end = int(entry[2])
-            breakpoints = dict()
+            breakpoints_sm = dict()
+            breakpoints_ms = dict()
             cigars = {"SM": 0, "MS": 0}
             for read in samfile.fetch(chromosome, cov_start, cov_end):
                 if read.mapping_quality >= min_mapq:
@@ -702,33 +707,39 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type, min_mapq):
                     pattern, offset = parse_cigar(read.cigar)
                     if pattern == "SM":
                         cigars["SM"] = cigars["SM"] + 1
-                        breakpoint = ref_start
+                        bp = ref_start
+                        if bp in breakpoints_sm:
+                            breakpoints_sm[bp] = breakpoints_sm[bp] + 1
+                        else:
+                            breakpoints_sm[bp] = 1
                     elif pattern == "MS":
                         cigars["MS"] = cigars["MS"] + 1
-                        breakpoint = ref_start + offset
-                    else:
-                        breakpoint = None
-                    if breakpoint:
-                        if breakpoint in breakpoints:
-                            breakpoints[breakpoint] = breakpoints[breakpoint] + 1
+                        bp = ref_start + offset
+                        if bp in breakpoints_ms:
+                            breakpoints_ms[bp] = breakpoints_ms[bp] + 1
                         else:
-                            breakpoints[breakpoint] = 1
+                            breakpoints_ms[bp] = 1
+                    else:
+                        bp = None
 
             cigar_joint = get_keys(cigars)
-            breakpoint_joint = get_keys(breakpoints)
+            # breakpoint_joint = get_keys(breakpoints)
 
             if cigar_joint:
                 if len(cigar_joint) > 1:
                     cigar_joint = "mix"
                 else:
                     cigar_joint = cigar_joint[0]
-            if breakpoint_joint:
-                breakpoint_joint = round(mean(breakpoint_joint))
+
+            # if breakpoint_joint:
+            #     breakpoint_joint = round(mean(breakpoint_joint))
 
             if cigar_joint == "MS":
+                breakpoint_joint = round(mean(get_keys(breakpoints_ms)))
                 refined_start = cov_start
                 refined_end = breakpoint_joint
             elif cigar_joint == "SM":
+                breakpoint_joint = round(mean(get_keys(breakpoints_sm)))
                 refined_start = breakpoint_joint
                 refined_end = cov_end
             else:
@@ -743,6 +754,8 @@ def refine_breakpoint(new_bed, old_bed, bam, cigar_type, min_mapq):
                         str(refined_start),
                         str(refined_end),
                         str(cigar_count),
+                        str(cigar_joint),
+                        str(breakpoint_joint),
                     ]
                 )
                 output.write(out_line + "\n")
@@ -779,36 +792,44 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
                 entry = line.replace("\n", "").split("\t")
                 chromosome = entry[0]
                 if (
-                    (int(entry[1]) - int(entry[5])) > 0
-                    and (int(entry[2]) - int(entry[6])) > 0
+                    (int(entry[1]) - int(entry[7])) > 0
+                    and (int(entry[2]) - int(entry[8])) > 0
                 ) or (
-                    (int(entry[5]) - int(entry[1])) > 0
-                    and (int(entry[6]) - int(entry[2])) > 0
+                    (int(entry[7]) - int(entry[1])) > 0
+                    and (int(entry[8]) - int(entry[2])) > 0
                 ):  # get rid of entries if one is within another
-                    if abs(int(entry[1]) - int(entry[6])) < abs(
-                        int(entry[2]) - int(entry[5])
+                    if abs(int(entry[1]) - int(entry[8])) < abs(
+                        int(entry[2]) - int(entry[7])
                     ):
-                        if int(entry[1]) < int(entry[6]):
+                        if int(entry[1]) < int(entry[8]):
                             start = entry[1]
-                            end = entry[6]
+                            end = entry[8]
                         else:
-                            start = entry[6]
+                            start = entry[8]
                             end = entry[1]
                         strand = "-"
                         dist = int(entry[1]) - int(
-                            entry[6]
+                            entry[8]
                         )  # positive: gap; negative: overlap
+                        if int(entry[1]) != int(entry[5]) or int(entry[8]) != int(
+                            entry[11]
+                        ):
+                            ins_pass = False
                     else:
-                        if int(entry[2]) < int(entry[5]):
+                        if int(entry[2]) < int(entry[7]):
                             start = entry[2]
-                            end = entry[5]
+                            end = entry[7]
                         else:
-                            start = entry[5]
+                            start = entry[7]
                             end = entry[2]
                         strand = "+"
-                        dist = int(entry[5]) - int(
+                        dist = int(entry[7]) - int(
                             entry[2]
                         )  # positive: gap; negative: overlap
+                        if int(entry[2]) != int(entry[5]) or int(entry[7]) != int(
+                            entry[11]
+                        ):
+                            ins_pass = False
                     if dist < 0:
                         if -dist > tsd_max:
                             ins_pass = False
@@ -817,9 +838,6 @@ def get_nonref(bed1, bed2, outdir, family, tsd_max, gap_max):
                             ins_pass = False
 
                     if ins_pass:
-                        # score = (float(entry[3]) + float(entry[7])) / 2
-                        # score = "{:.2f}".format(score)
-                        # score = "|".join([entry[3], entry[7]])
                         score = "."
                         family_info = "|".join([family, str(dist)])
                         out_line = "\t".join(
