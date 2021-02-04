@@ -139,7 +139,6 @@ strand | Strand that TE insertion occurs
 
 ## Log file output by ngs_te_mapper2
 For each ngs_te_mapper2 run, a log file called `<sample>.log` is generated that records all the major steps in the program and error messages.
-`<sample>.log`: log file of ngs_te_mapper2 run.
 
 # <a name="help"></a> Getting help
 Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper2/issues) if you have questions.
