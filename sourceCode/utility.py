@@ -905,6 +905,29 @@ def parse_rm_out(rm_gff, bed):
                 )
                 output.write(out_line + "\n")
 
+def gff3tobed(gff, bed):
+    # check GFF3 format
+    with open(gff, "r") as input:
+        for line in input:
+            if "#" not in line:
+                if "Target=" not in line:
+                    print("Incorrect GFF3 format, please check README for expected format, exiting...")
+                    logging.exception("Incorrect GFF3 format, please check README for expected format, exiting...")
+                    sys.exit(1)
+                break
+    with open(bed, "w") as output, open(gff, "r") as input:
+        for line in input:
+            if "#" not in line:
+                entry = line.replace("\n", "").split("\t")
+                info = entry[8].split(";")
+                for item in info:
+                    if "Target=" in item:
+                        family = item.replace("Target=", "")
+                out_line = "\t".join(
+                    [entry[0], entry[3], entry[4], family, ".", entry[6]]
+                )
+                output.write(out_line + "\n")
+
 
 def get_ref(bed1, bed2, rm_bed, out_dir, family, window=50):
     # calculate clusters that jointly support ref TEs (all, norm) with a percentage

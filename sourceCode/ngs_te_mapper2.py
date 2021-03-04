@@ -22,7 +22,7 @@ from utility import (
     get_lines,
     create_soft_link,
     get_masked_genome,
-    parse_rm_out,
+    gff3tobed,
 )
 
 """
@@ -57,7 +57,7 @@ def get_args():
         "-a",
         "--annotation",
         type=str,
-        help="reference TE annotation in gff format",
+        help="reference TE annotation in GFF3 format",
         required=False,
     )
     optional.add_argument(
@@ -197,22 +197,22 @@ def main():
         sample_prefix = args.prefix
 
     # prepare modified reference genome
-    rm_dir = os.path.join(tmp_dir, "mask_genome")
-    mkdir(rm_dir)
+    mask_ref_dir = os.path.join(tmp_dir, "mask_genome")
+    mkdir(mask_ref_dir)
     if args.annotation:
-        rm_gff = create_soft_link(args.annotation, tmp_dir)
-        ref_modified = get_masked_genome(ref=ref, outdir=rm_dir, bed=rm_gff)
-        rm_bed = os.path.join(rm_dir, os.path.basename(ref) + ".bed")
-        parse_rm_out(rm_gff, rm_bed)
+        te_gff = create_soft_link(args.annotation, tmp_dir)
+        ref_masked = get_masked_genome(ref=ref, outdir=mask_ref_dir, bed=te_gff)
+        te_bed = os.path.join(mask_ref_dir, os.path.basename(ref) + ".bed")
+        gff3tobed(te_gff, te_bed)
     else:
-        ref_modified, rm_bed = repeatmask(
+        ref_masked, te_bed = repeatmask(
             ref=ref,
             library=library,
-            outdir=rm_dir,
+            outdir=mask_ref_dir,
             thread=args.thread,
         )
     if args.mapper == "bwa":
-        subprocess.call(["bwa", "index", ref_modified])
+        subprocess.call(["bwa", "index", ref_masked])
         subprocess.call(["bwa", "index", library])
 
     # get all TE families
@@ -253,8 +253,8 @@ def main():
         argument = [
             family,
             bam,
-            ref_modified,
-            rm_bed,
+            ref_masked,
+            te_bed,
             family_dir,
             args.mapper,
             contigs,
@@ -296,7 +296,7 @@ def main():
             get_af(
                 nonref_bed,
                 nonref_tmp,
-                ref_modified,
+                ref_masked,
                 fastq,
                 genome,
                 args.thread,
@@ -321,7 +321,7 @@ def main():
 
     # gather reference TE predictions
     ref_bed = args.out + "/" + sample_prefix + ".ref.bed"
-    if rm_bed is not None:
+    if te_bed is not None:
         pattern = "/*/*.reference.bed"
         bed_files = glob(family_dir + pattern, recursive=True)
         merge_bed(
