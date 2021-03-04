@@ -20,6 +20,9 @@ from utility import (
     get_af,
     get_genome_file,
     get_lines,
+    create_soft_link,
+    get_masked_genome,
+    parse_rm_out,
 )
 
 """
@@ -50,6 +53,13 @@ def get_args():
         "-r", "--reference", type=str, help="reference genome", required=True
     )
     ## optional
+    optional.add_argument(
+        "-a",
+        "--annotation",
+        type=str,
+        help="reference TE annotation in gff format",
+        required=False,
+    )
     optional.add_argument(
         "-n", "--region", type=str, help="region to filter", required=False
     )
@@ -187,14 +197,20 @@ def main():
         sample_prefix = args.prefix
 
     # prepare modified reference genome
-    rm_dir = os.path.join(tmp_dir, "repeatmask")
+    rm_dir = os.path.join(tmp_dir, "mask_genome")
     mkdir(rm_dir)
-    ref_modified, rm_bed = repeatmask(
-        ref=ref,
-        library=library,
-        outdir=rm_dir,
-        thread=args.thread,
-    )
+    if args.annotation:
+        rm_gff = create_soft_link(args.annotation, tmp_dir)
+        ref_modified = get_masked_genome(ref=ref, outdir=rm_dir, bed=rm_gff)
+        rm_bed = os.path.join(rm_dir, os.path.basename(ref) + ".bed")
+        parse_rm_out(rm_gff, rm_bed)
+    else:
+        ref_modified, rm_bed = repeatmask(
+            ref=ref,
+            library=library,
+            outdir=rm_dir,
+            thread=args.thread,
+        )
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_modified])
         subprocess.call(["bwa", "index", library])

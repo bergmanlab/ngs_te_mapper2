@@ -79,6 +79,14 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
     return prefix, fastq, library, ref
 
 
+def get_masked_genome(ref, outdir, bed):
+    ref_masked = os.path.join(outdir, os.path.basename(ref) + ".masked")
+    subprocess.call(
+        ["bedtools", "maskfasta", "-fi", ref, "-bed", bed, "-fo", ref_masked]
+    )
+    return ref_masked
+
+
 def get_prefix(path):
     """
     Get prefix of the input fastq files.
