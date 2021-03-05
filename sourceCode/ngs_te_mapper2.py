@@ -57,7 +57,7 @@ def get_args():
         "-a",
         "--annotation",
         type=str,
-        help="reference TE annotation in GFF3 format",
+        help="reference TE annotation in GFF3 format (must have 'Target' attribute in the 9th column)",
         required=False,
     )
     optional.add_argument(
