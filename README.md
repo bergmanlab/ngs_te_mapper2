@@ -102,8 +102,6 @@ optional arguments:
   -a ANNOTATION, --annotation ANNOTATION
                         reference TE annotation in GFF3 format (must have
                         'Target' attribute in the 9th column)
-  -n REGION, --region REGION
-                        region to filter
   -w WINDOW, --window WINDOW
                         merge window for identifying TE clusters (default =
                         10)

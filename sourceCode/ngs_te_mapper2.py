@@ -61,9 +61,6 @@ def get_args():
         required=False,
     )
     optional.add_argument(
-        "-n", "--region", type=str, help="region to filter", required=False
-    )
-    optional.add_argument(
         "-w",
         "--window",
         type=int,
