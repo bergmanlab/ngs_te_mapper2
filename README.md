@@ -111,8 +111,6 @@ optional arguments:
   --min_af MIN_AF       minimum allele frequency (default = 0.1)
   --tsd_max TSD_MAX     maximum TSD size (default = 25)
   --gap_max GAP_MAX     maximum gap size (default = 5)
-  -m MAPPER, --mapper MAPPER
-                        read alignment program (default = 'bwa')
   -t THREAD, --thread THREAD
                         thread (default = 1)
   -o OUT, --out OUT     output dir (default = '.')
