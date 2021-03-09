@@ -199,15 +199,15 @@ def main():
     if args.annotation:
         te_gff = create_soft_link(args.annotation, tmp_dir)
         ref_masked = get_masked_genome(ref=ref, outdir=mask_ref_dir, bed=te_gff)
-        te_bed = os.path.join(mask_ref_dir, os.path.basename(ref) + ".bed")
-        gff3tobed(te_gff, te_bed)
     else:
-        ref_masked, te_bed = repeatmask(
+        ref_masked, te_gff = repeatmask(
             ref=ref,
             library=library,
             outdir=mask_ref_dir,
             thread=args.thread,
         )
+    te_bed = os.path.join(mask_ref_dir, os.path.basename(ref) + ".bed")
+    gff3tobed(te_gff, te_bed)
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_masked])
         subprocess.call(["bwa", "index", library])
