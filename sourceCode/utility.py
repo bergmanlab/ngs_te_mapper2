@@ -305,6 +305,7 @@ def repeatmask(ref, library, outdir, thread):
         )
         ref_rm = os.path.join(outdir, os.path.basename(ref) + ".masked")
         gff = os.path.join(outdir, os.path.basename(ref) + ".out.gff")
+        gff3 = os.path.join(outdir, os.path.basename(ref) + ".out.gff3")
         if not os.path.isfile(ref_rm):
             ref_rm_out = os.path.join(outdir, os.path.basename(ref) + ".out")
             with open(ref_rm_out, "r") as input:
@@ -313,18 +314,17 @@ def repeatmask(ref, library, outdir, thread):
                         print("No repetitive sequences detected")
                         ref_rm = ref
                         gff = None
-                        rm_bed = None
+                        gff3 = None
                     else:
                         raise Exception("Repeatmasking failed, exiting...")
         else:
-            rm_bed = os.path.join(outdir, os.path.basename(ref) + ".bed")
-            parse_rm_out(gff, rm_bed)
+            parse_rm_out(gff, gff3)
             open(ref_rm, "r")
     except Exception as e:
         print(e)
         print("Repeatmasking failed, exiting...")
         sys.exit(1)
-    return ref_rm, rm_bed
+    return ref_rm, gff3
 
 
 def get_family_bam(bam_in, bam_out, family, thread):
@@ -892,8 +892,8 @@ def merge_bed(bed_in, bed_out, genome, filter_method="overlap"):
         os.rename(bed_merge, bed_out)
 
 
-def parse_rm_out(rm_gff, bed):
-    with open(bed, "w") as output, open(rm_gff, "r") as input:
+def parse_rm_out(rm_gff, gff3):
+    with open(gff3, "w") as output, open(rm_gff, "r") as input:
         for line in input:
             if "RepeatMasker" in line:
                 entry = line.replace("\n", "").split("\t")
@@ -901,7 +901,7 @@ def parse_rm_out(rm_gff, bed):
                 family = re.sub('"Motif:', "", family)
                 family = re.sub('"', "", family)
                 out_line = "\t".join(
-                    [entry[0], entry[3], entry[4], family, ".", entry[6]]
+                    [entry[0], "RepeatMasker", "dispersed_repeat", entry[3], entry[4], entry[5], entry[6], entry[7], "Target="+family]
                 )
                 output.write(out_line + "\n")
 
@@ -924,7 +924,7 @@ def gff3tobed(gff, bed):
                     if "Target=" in item:
                         family = item.replace("Target=", "")
                 out_line = "\t".join(
-                    [entry[0], entry[3], entry[4], family, ".", entry[6]]
+                    [entry[0], str(int(entry[3])-1), entry[4], family, ".", entry[6]]
                 )
                 output.write(out_line + "\n")
 
