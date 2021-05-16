@@ -118,7 +118,7 @@ def get_lines(path):
     return count
 
 
-def get_cluster(bam, bed, cutoff, window):
+def get_cluster(bam, bed, cutoff, window, family):
     # generate potential TE enriched clusters based on depth profile
     depth = bam + ".depth"
     with open(depth, "w") as output:
@@ -164,7 +164,9 @@ def get_cluster(bam, bed, cutoff, window):
     with open(bed, "w") as output, open(bed_tmp, "r") as input:
         for line in input:
             entry = line.replace("\n", "").split("\t")
-            if "chr" in entry[0]:
+            contig = entry[0]
+            if contig != family:
+                # if "chr" in entry[0]:
                 out_line = "\t".join(
                     [entry[0], entry[1], str(int(entry[2]) + 1), entry[3]]
                 )
@@ -419,7 +421,7 @@ def get_family_bed(args):
     # get insertion candidate using coverage profile
     sm_bed = family_dir + "/" + family + ".sm.bed"
     get_cluster(
-        sm_bam, sm_bed, cutoff=1, window=window
+        sm_bam, sm_bed, cutoff=1, window=window, family=family
     )  # TODO: add this option to args?
 
     sm_bed_refined = family_dir + "/" + family + ".refined.sm.bed"
@@ -431,7 +433,7 @@ def get_family_bed(args):
         bed_rm_dup(sm_bed_refined, sm_bed_unique)
 
     ms_bed = family_dir + "/" + family + ".ms.bed"
-    get_cluster(ms_bam, ms_bed, cutoff=1, window=window)
+    get_cluster(ms_bam, ms_bed, cutoff=1, window=window, family=family)
 
     ms_bed_refined = family_dir + "/" + family + ".refined.ms.bed"
     if os.path.isfile(ms_bed) and os.stat(ms_bed).st_size != 0:
@@ -901,9 +903,20 @@ def parse_rm_out(rm_gff, gff3):
                 family = re.sub('"Motif:', "", family)
                 family = re.sub('"', "", family)
                 out_line = "\t".join(
-                    [entry[0], "RepeatMasker", "dispersed_repeat", entry[3], entry[4], entry[5], entry[6], entry[7], "Target="+family]
+                    [
+                        entry[0],
+                        "RepeatMasker",
+                        "dispersed_repeat",
+                        entry[3],
+                        entry[4],
+                        entry[5],
+                        entry[6],
+                        entry[7],
+                        "Target=" + family,
+                    ]
                 )
                 output.write(out_line + "\n")
+
 
 def gff3tobed(gff, bed):
     # check GFF3 format
@@ -911,8 +924,12 @@ def gff3tobed(gff, bed):
         for line in input:
             if "#" not in line:
                 if "Target=" not in line:
-                    print("Incorrect GFF3 format, please check README for expected format, exiting...")
-                    logging.exception("Incorrect GFF3 format, please check README for expected format, exiting...")
+                    print(
+                        "Incorrect GFF3 format, please check README for expected format, exiting..."
+                    )
+                    logging.exception(
+                        "Incorrect GFF3 format, please check README for expected format, exiting..."
+                    )
                     sys.exit(1)
                 break
     with open(bed, "w") as output, open(gff, "r") as input:
@@ -924,7 +941,7 @@ def gff3tobed(gff, bed):
                     if "Target=" in item:
                         family = item.replace("Target=", "")
                 out_line = "\t".join(
-                    [entry[0], str(int(entry[3])-1), entry[4], family, ".", entry[6]]
+                    [entry[0], str(int(entry[3]) - 1), entry[4], family, ".", entry[6]]
                 )
                 output.write(out_line + "\n")
 

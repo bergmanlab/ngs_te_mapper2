@@ -207,7 +207,10 @@ def main():
             thread=args.thread,
         )
     te_bed = os.path.join(mask_ref_dir, os.path.basename(ref) + ".bed")
-    gff3tobed(te_gff, te_bed)
+    if te_gff is not None:
+        gff3tobed(te_gff, te_bed)
+    else:
+        te_bed = None
     if args.mapper == "bwa":
         subprocess.call(["bwa", "index", ref_masked])
         subprocess.call(["bwa", "index", library])
