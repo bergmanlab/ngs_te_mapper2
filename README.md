@@ -78,6 +78,16 @@ python3 ../sourceCode/ngs_te_mapper2.py -o test_output -f reads.fastq -r ref_1kb
 ```
 
 # <a name="run"></a> Usage
+## ngs_te_mapper2 required input files
+* FASTQ File (`-f/--reads`)
+  * Raw reads from paired-end or single-end sequencing run in fastq or fastq.gz format.
+  * Multiple fastq/fastq.gz files can be provided separated by comma (ep. `-f R1.fasta,R2.fasta`).
+* TE library FASTA (`-l/--library`)
+  * A FASTA file containing a consensus sequence for each TE family. Note: Each family should only be represented in one sequence in this file.
+  * [Example consensus FASTA file](https://github.com/bergmanlab/transposons/blob/master/releases/D_mel_transposon_sequence_set_v10.1.fa)
+* Reference FASTA (`-r/--reference`)
+  * The genome sequence of the reference genome in FASTA format.
+
 ## Command line help page
 ```
 usage: ngs_te_mapper2.py [-h] -f READS -l LIBRARY -r REFERENCE [-a ANNOTATION]
