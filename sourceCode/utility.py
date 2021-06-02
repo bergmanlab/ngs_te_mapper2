@@ -5,6 +5,7 @@ import os
 import subprocess
 import logging
 import re
+from Bio import SeqIO
 import math
 from datetime import datetime, timedelta
 from statistics import mean
@@ -40,6 +41,19 @@ def create_soft_link(input, out_dir):
     return link
 
 
+def fix_fasta_header(fasta_input, fasta_output):
+    sequences = []
+    with open(fasta_input, "r") as input, open(fasta_output, "w") as output:
+        for record in SeqIO.parse(input, "fasta"):
+            seq_name = str(record.id)
+            if "#" in seq_name:
+                seq_name = seq_name.split('#')[0]
+                record.id = seq_name
+                record.description = ""
+            sequences.append(record)
+        SeqIO.write(sequences, output, "fasta")
+
+
 def parse_input(input_reads, input_library, input_reference, out_dir):
     """
     Parse input files.
@@ -48,7 +62,12 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
 
     # create symbolic link for the input file
     library = create_soft_link(input_library, out_dir)
+    library_fix = library + ".fix"
+    fix_fasta_header(library, library_fix)
+
     ref = create_soft_link(input_reference, out_dir)
+    ref_fix = ref + '.fix'
+    fix_fasta_header(ref, ref_fix)
 
     input_reads = input_reads.replace(" ", "").split(",")
     # unzip and merge input files, if muliple inputs were provided
@@ -76,7 +95,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
                     subprocess.call(["gunzip", "-c", read], stdout=output)
                 else:
                     subprocess.call(["cat", read], stdout=output)
-    return prefix, fastq, library, ref
+    return prefix, fastq, library_fix, ref_fix
 
 
 def get_masked_genome(ref, outdir, bed):
