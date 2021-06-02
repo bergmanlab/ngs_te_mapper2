@@ -47,7 +47,7 @@ def fix_fasta_header(fasta_input, fasta_output):
         for record in SeqIO.parse(input, "fasta"):
             seq_name = str(record.id)
             if "#" in seq_name:
-                seq_name = seq_name.split('#')[0]
+                seq_name = seq_name.split("#")[0]
                 record.id = seq_name
                 record.description = ""
             sequences.append(record)
@@ -66,7 +66,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
     fix_fasta_header(library, library_fix)
 
     ref = create_soft_link(input_reference, out_dir)
-    ref_fix = ref + '.fix'
+    ref_fix = ref + ".fix"
     fix_fasta_header(ref, ref_fix)
 
     input_reads = input_reads.replace(" ", "").split(",")
@@ -283,31 +283,6 @@ def make_bam(fq, ref, thread, bam, mapper="bwa"):
     subprocess.call(["samtools", "index", bam])
     os.remove(sam)
 
-
-# def subset_bam_ids(bam_in, bam_out, contigs, ids, thread):
-#     # subset bam file using read IDs
-#     # # https://bioinformatics.stackexchange.com/questions/3380/how-to-subset-a-bam-by-a-list-of-qnames
-#     bam_tmp = bam_out + ".tmp"
-#     with open(bam_tmp, "w") as output:
-#         command = (
-#             "samtools view -h "
-#             + bam_in
-#             + " "
-#             + contigs
-#             + " | awk 'FNR==NR {reads[$1]||$0 ~ /@/;next} /^@/||($1 in reads) {print $0}' "
-#             + ids
-#             + " - "
-#             # + " | awk '{if($0 ~ /^@/ || $6 ~ /S/ || $6 ~ /H/) {print $0}}' "
-#             + " | samtools view -Sb -"
-#         )
-#         subprocess.call(command, shell=True, stdout=output)
-#     sort_index_bam(bam_tmp, bam_out, thread)
-
-def check_file_exists(infile):
-    if os.path.exists(infile):
-        return True
-    else:
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), infile)
 
 def repeatmask(ref, library, outdir, thread):
     try:
