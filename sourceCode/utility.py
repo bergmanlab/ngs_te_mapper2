@@ -79,7 +79,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
         reads_copy.append(create_soft_link(read, out_dir))
     if len(reads_copy) == 1:
         read = reads_copy[0]
-        prefix = get_prefix(read)
+        prefix = get_prefix(read).replace("+", "plus")
         if ".gz" in read:
             fastq = read.replace(".gz", "")
             with open(fastq, "w") as output:
@@ -87,7 +87,7 @@ def parse_input(input_reads, input_library, input_reference, out_dir):
         else:
             fastq = read
     else:
-        prefix = get_prefix(reads_copy[0])
+        prefix = get_prefix(reads_copy[0]).replace("+", "plus")
         fastq = os.path.join(out_dir, prefix + ".merge.fastq")
         with open(fastq, "w") as output:
             for read in reads_copy:
@@ -303,6 +303,11 @@ def make_bam(fq, ref, thread, bam, mapper="bwa"):
 #         subprocess.call(command, shell=True, stdout=output)
 #     sort_index_bam(bam_tmp, bam_out, thread)
 
+def check_file_exists(infile):
+    if os.path.exists(infile):
+        return True
+    else:
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), infile)
 
 def repeatmask(ref, library, outdir, thread):
     try:
