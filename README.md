@@ -23,58 +23,62 @@ In the third stage, all reads from the original whole genome shotgun sequence da
 
 Reference TE insertions are detected using a similar strategy to non-reference insertions, independently of any reference TE annotation. The first stage in detecting reference TE insertions is identical to the first stage of detecting non-reference TE insertions described above. The second stage in identifying reference TE insertions involves alignment of the renamed, but otherwise unmodified, junction reads to the reference genome. Alignments of the complete junction read (i.e. non-TE and TE components) are clustered to identify the two ends of the reference TE insertion. The orientation of the reference TE is then determined from the relative orientation of alignments of the junction reads to the reference genome and TE library.
 
-# <a name="install"></a> Installation
-## Use Conda to install software dependencies
-ngs_te_mapper2 is written in python3 and is designed to run on a Linux operating system. Installation of software dependencies for ngs_te_mapper2 is automated by Conda, thus a working installation of Conda is required to install ngs_te_mapper2. Conda can be installed via the Miniconda installer.
+ngs_te_mapper2 is written in python3 and is designed to run on a Linux operating system.
 
-### Installing Miniconda (Python 3.X)
+# <a name="install"></a> Installation
+### Install Miniconda (Python 3.X)
+To install ngs_te_mapper2, the recommended way is using conda. If your system doesn't have conda installed, you could use following steps to install Miniconda (Python 3.X). For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 ```
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME//miniconda.sh
 bash ~/miniconda.sh -b -p $HOME/miniconda # silent mode
 echo "export PATH=\$PATH:\$HOME/miniconda/bin" >> $HOME/.bashrc # add to .bashrc
 source $HOME/.bashrc
-conda init
-```
-- `conda init` requires you to close and open a new terminal before it take effect
 
-### Update Conda
+conda init # this step requires you to close and open a new terminal before it take effect
+conda update conda # update conda
 ```
-conda update conda
+### Install using conda (recommended)
+We recommend installing ngs_te_mapper2 using conda. All software dependencies should automatically be installed when you install ngs_te_mapper2 via conda.
+```
+# We recommended installing ngs_te_mapper2 in a new conda environment
+conda create -n ngs_te_mapper2 --channel bioconda ngs_te_mapper2
+
+# Alternatively, you can install ngs_te_mapper2 in current active environment
+conda install --channel bioconda ngs_te_mapper2
 ```
 
-## Install software dependencies
-After installing and updating Conda, you can now use conda to install dependencies and create running environment for ngs_te_mapper2.
-### Clone ngs_te_mapper2 Repository
+### Install using pip
+Alternatively, ngs_te_mapper2 can be installed using pip.
+```
+# Installing ngs_te_mapper2 using github repo
+git clone git@github.com:bergmanlab/ngs_te_mapper2.git
+cd ngs_te_mapper2
+pip install .
+
+# Alternatively, you can install ngs_te_mapper2 hosted in pypi
+pip install ngs_te_mapper2
+```
+
+The pip installation doesn't include software dependencies to run ngs_te_mapper2. We recommend using following steps to install all the software dependencies using conda.
 ```
 git clone git@github.com:bergmanlab/ngs_te_mapper2.git
 cd ngs_te_mapper2
-```
-### Create ngs_te_mapper2 Conda Environment
-```
 conda env create -f envs/ngs_te_mapper2.yml
-```
-- This installs all the software dependencies needed to run ngs_te_mapper2 into the ngs_te_mapper2 Conda environment.
-
-### Activate ngs_te_mapper2 Conda Environment
-```
 conda activate ngs_te_mapper2
 ```
-- This adds the dependencies installed in the ngs_te_mapper2 conda environment to the environment PATH so that they can be used by the ngs_te_mapper2 scripts.
-- This environment must always be activated prior to running any of the ngs_te_mapper2 scripts
-- NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
+NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
 ```
 CONDA_BASE=$(conda info --base)
 source ${CONDA_BASE}/etc/profile.d/conda.sh
 conda activate ngs_te_mapper2
 ```
-- For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 
 ## Running ngs_te_mapper2 on test dataset
 - A test dataset is provided in the `test/` directory, you can test whether your ngs_te_mapper2 installation is successful by running ngs_te_mapper2 on this dataset, which should take less than one minute to finish on a single thread machine.
 ```
 conda activate ngs_te_mapper2
 cd test
-python3 ../sourceCode/ngs_te_mapper2.py -o test_output -f reads.fastq -r ref_1kb.fasta -l library.fasta
+ngs_te_mapper2 -o test_output -f reads.fastq -r ref_1kb.fasta -l library.fasta
 ```
 
 # <a name="run"></a> Usage
@@ -90,7 +94,7 @@ python3 ../sourceCode/ngs_te_mapper2.py -o test_output -f reads.fastq -r ref_1kb
 
 ## Command line help page
 ```
-usage: ngs_te_mapper2.py [-h] -f READS -l LIBRARY -r REFERENCE [-a ANNOTATION]
+usage: ngs_te_mapper2 [-h] -f READS -l LIBRARY -r REFERENCE [-a ANNOTATION]
                          [-n REGION] [-w WINDOW] [--min_mapq MIN_MAPQ]
                          [--min_af MIN_AF] [--tsd_max TSD_MAX]
                          [--gap_max GAP_MAX] [-m MAPPER] [-t THREAD] [-o OUT]
@@ -161,7 +165,7 @@ To cite ngs_te_mapper2 in publications, please use:
   http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008
 
 # <a name="license"></a> License
-Copyright (c) 2020 Shunhua Han and Casey M. Bergman
+Copyright (c) 2021 Shunhua Han and Casey M. Bergman
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
