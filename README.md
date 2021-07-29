@@ -27,7 +27,7 @@ ngs_te_mapper2 is written in python3 and is designed to run on a Linux operating
 
 # <a name="install"></a> Installation
 ### Install Miniconda (Python 3.X)
-To install ngs_te_mapper2, the recommended way is using conda. If your system doesn't have conda installed, you could use following steps to install Miniconda (Python 3.X). For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
+To install ngs_te_mapper2, the recommended way is using conda. If your system doesn't have conda installed, you could use following steps to install Miniconda (Python 3.X).
 ```
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME//miniconda.sh
 bash ~/miniconda.sh -b -p $HOME/miniconda # silent mode
@@ -37,8 +37,9 @@ source $HOME/.bashrc
 conda init # this step requires you to close and open a new terminal before it take effect
 conda update conda # update conda
 ```
+For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 ### Install using conda (recommended)
-We recommend installing ngs_te_mapper2 using conda. All software dependencies should automatically be installed when you install ngs_te_mapper2 via conda.
+The easiest way to install ngs_te_mapper2 is using conda. All software dependencies should automatically be installed during the ngs_te_mapper2 installation.
 ```
 # We recommended installing ngs_te_mapper2 in a new conda environment
 conda create -n ngs_te_mapper2 --channel bioconda ngs_te_mapper2
@@ -58,19 +59,11 @@ pip install .
 # Alternatively, you can install ngs_te_mapper2 hosted in pypi
 pip install ngs_te_mapper2
 ```
-
 The pip installation doesn't include software dependencies to run ngs_te_mapper2. We recommend using following steps to install all the software dependencies using conda.
 ```
 git clone git@github.com:bergmanlab/ngs_te_mapper2.git
 cd ngs_te_mapper2
 conda env create -f envs/ngs_te_mapper2.yml
-conda activate ngs_te_mapper2
-```
-NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
-```
-CONDA_BASE=$(conda info --base)
-source ${CONDA_BASE}/etc/profile.d/conda.sh
-conda activate ngs_te_mapper2
 ```
 
 ## Running ngs_te_mapper2 on test dataset
@@ -79,6 +72,12 @@ conda activate ngs_te_mapper2
 conda activate ngs_te_mapper2
 cd test
 ngs_te_mapper2 -o test_output -f reads.fastq -r ref_1kb.fasta -l library.fasta
+```
+NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
+```
+CONDA_BASE=$(conda info --base)
+source ${CONDA_BASE}/etc/profile.d/conda.sh
+conda activate ngs_te_mapper2
 ```
 
 # <a name="run"></a> Usage
