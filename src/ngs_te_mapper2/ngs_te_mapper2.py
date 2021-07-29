@@ -9,7 +9,7 @@ import subprocess
 import shutil
 from glob import glob
 from multiprocessing import Pool
-from utility import (
+from ngs_te_mapper2.utility import (
     parse_input,
     repeatmask,
     make_bam,
@@ -342,4 +342,5 @@ def main():
     logging.info("Number of non-reference TEs: " + str(num_nonref))
 
 
-main()
+if __name__ == "__main__":
+    main()
