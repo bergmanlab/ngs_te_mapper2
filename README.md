@@ -9,7 +9,7 @@
 * [License](#license)
 
 # <a name="intro"></a> Introduction
-- ngs_te_mapper2 is a re-implementation of the method for detecting transposable element (TE) insertions from next-generation sequencing (NGS) data originally described in [Linheiro and Bergman (2012) PLoS ONE 7(2): e30008](http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008). ngs_te_mapper2 uses a three-stage procedure to annotate non-reference TEs as the span of target site duplication (TSD), following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](https://www.tandfonline.com/doi/full/10.4161/mge.19479).
+ngs_te_mapper2 is a re-implementation of the method for detecting transposable element (TE) insertions from next-generation sequencing (NGS) data originally described in [Linheiro and Bergman (2012) PLoS ONE 7(2): e30008](http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008). ngs_te_mapper2 uses a three-stage procedure to annotate non-reference TEs as the span of target site duplication (TSD), following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](https://www.tandfonline.com/doi/full/10.4161/mge.19479).
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/bergmanlab/ngs_te_mapper2/master/img/ngs_te_mapper2.png?raw=true"/>
@@ -23,11 +23,11 @@
 
 - Reference TE insertions are detected using a similar strategy to non-reference insertions, independently of any reference TE annotation. The first stage in detecting reference TE insertions is identical to the first stage of detecting non-reference TE insertions described above. The second stage in identifying reference TE insertions involves alignment of the renamed, but otherwise unmodified, junction reads to the reference genome. Alignments of the complete junction read (i.e. non-TE and TE components) are clustered to identify the two ends of the reference TE insertion. The orientation of the reference TE is then determined from the relative orientation of alignments of the junction reads to the reference genome and TE library.
 
-- ngs_te_mapper2 is written in python3 and is designed to run on a Linux operating system.
+ngs_te_mapper2 is written in python3 and is designed to run on a Linux operating system.
 
 # <a name="install"></a> Installation
 ### Install Miniconda
-- To install ngs_te_mapper2, the recommended way is using conda. If your system doesn't have conda installed, you could use following steps to install Miniconda (Python 3.X).
+To install ngs_te_mapper2, the recommended way is using conda. If your system doesn't have conda installed, you could use following steps to install Miniconda (Python 3.X). For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 ```
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME//miniconda.sh
 bash ~/miniconda.sh -b -p $HOME/miniconda # silent mode
@@ -37,9 +37,8 @@ source $HOME/.bashrc
 conda init # this step requires you to close and open a new terminal before it take effect
 conda update conda # update conda
 ```
-- For more on Conda: see the [Conda User Guide](https://docs.conda.io/projects/conda/en/latest/index.html).
 ### Install ngs_te_mapper2 using conda (recommended)
-- The easiest way to install ngs_te_mapper2 is using conda. All software dependencies should automatically be installed during the ngs_te_mapper2 installation.
+The easiest way to install ngs_te_mapper2 is using conda. All software dependencies should automatically be installed during the ngs_te_mapper2 installation.
 ```
 # We recommended installing ngs_te_mapper2 in a new conda environment
 conda create -n ngs_te_mapper2 --channel bioconda ngs_te_mapper2
@@ -47,9 +46,8 @@ conda create -n ngs_te_mapper2 --channel bioconda ngs_te_mapper2
 # Alternatively, you can install ngs_te_mapper2 in current active environment
 conda install --channel bioconda ngs_te_mapper2
 ```
-
 ### Install ngs_te_mapper2 using pip
-- Alternatively, ngs_te_mapper2 can be installed using pip.
+Alternatively, ngs_te_mapper2 can be installed using pip.
 ```
 # Installing ngs_te_mapper2 using github repo
 git clone git@github.com:bergmanlab/ngs_te_mapper2.git
@@ -59,7 +57,7 @@ pip install .
 # Alternatively, you can install ngs_te_mapper2 hosted in pypi
 pip install ngs_te_mapper2
 ```
-- The pip installation doesn't include software dependencies to run ngs_te_mapper2. We recommend using following steps to install all the software dependencies using conda.
+The pip installation doesn't include software dependencies to run ngs_te_mapper2. We recommend using following steps to install all the software dependencies using conda.
 ```
 git clone git@github.com:bergmanlab/ngs_te_mapper2.git
 cd ngs_te_mapper2
@@ -67,13 +65,13 @@ conda env create -f envs/ngs_te_mapper2.yml
 ```
 
 ## Run ngs_te_mapper2 on test dataset
-- A test dataset is provided in the `test/` directory, you can test whether your ngs_te_mapper2 installation is successful by running ngs_te_mapper2 on this dataset, which should take less than one minute to finish on a single thread machine.
+A test dataset is provided in the `test/` directory, you can test whether your ngs_te_mapper2 installation is successful by running ngs_te_mapper2 on this dataset, which should take less than one minute to finish on a single thread machine.
 ```
 conda activate ngs_te_mapper2
 cd test
 ngs_te_mapper2 -o test_output -f reads.fastq -r ref_1kb.fasta -l library.fasta
 ```
-- NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
+NOTE: Sometimes activating conda environments does not work via conda activate myenv when run through a script submitted to a queueing system, this can be fixed by activating the environment in the script as shown below
 ```
 CONDA_BASE=$(conda info --base)
 source ${CONDA_BASE}/etc/profile.d/conda.sh
@@ -130,7 +128,7 @@ optional arguments:
   -k, --keep_files      If provided then all intermediate files will be kept
                         (default: remove intermediate files)
 ```
-- Note: The optional reference TE annotation input should in theory speed up the program. ngs_te_mapper2 expects the TE annotation to be in [GFF3 format](https://m.ensembl.org/info/website/upload/gff3.html) and `Target` attribute must be included in the 9th column that represents TE family name. If you have `*.out` annotation generated by RepeatMasker, you can use this [utility script](https://www.repeatmasker.org/utils/rmOutToGFF3.pl) to convert from `*.out` to GFF3 format.
+Note: The optional reference TE annotation input should in theory speed up the program. ngs_te_mapper2 expects the TE annotation to be in [GFF3 format](https://m.ensembl.org/info/website/upload/gff3.html) and `Target` attribute must be included in the 9th column that represents TE family name. If you have `*.out` annotation generated by RepeatMasker, you can use this [utility script](https://www.repeatmasker.org/utils/rmOutToGFF3.pl) to convert from `*.out` to GFF3 format.
 
 # <a name="output"></a> Output
 ngs_te_mapper2 outputs reference and non-referece TE insertion predictions in BED format (0-based).
