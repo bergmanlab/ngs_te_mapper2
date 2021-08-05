@@ -37,31 +37,14 @@ source $HOME/.bashrc
 conda init # this step requires you to close and open a new terminal before it take effect
 conda update conda # update conda
 ```
-### Install ngs_te_mapper2 using conda (recommended)
-The easiest way to install ngs_te_mapper2 is using conda. All software dependencies should automatically be installed during the ngs_te_mapper2 installation.
+### Install ngs_te_mapper2 using conda
+ngs_te_mapper2 and all software dependencies can be installed using conda.
 ```
 # We recommended installing ngs_te_mapper2 in a new conda environment
 conda create -n ngs_te_mapper2 --channel bioconda ngs_te_mapper2
 
 # Alternatively, you can install ngs_te_mapper2 in current active environment
 conda install --channel bioconda ngs_te_mapper2
-```
-### Install ngs_te_mapper2 using pip
-Alternatively, ngs_te_mapper2 can be installed using pip.
-```
-# Installing ngs_te_mapper2 using github repo
-git clone git@github.com:bergmanlab/ngs_te_mapper2.git
-cd ngs_te_mapper2
-pip install .
-
-# Alternatively, you can install ngs_te_mapper2 hosted in pypi
-pip install ngs_te_mapper2
-```
-The pip installation doesn't include software dependencies to run ngs_te_mapper2. We recommend using following steps to install all the software dependencies using conda.
-```
-git clone git@github.com:bergmanlab/ngs_te_mapper2.git
-cd ngs_te_mapper2
-conda env create -f envs/ngs_te_mapper2.yml
 ```
 
 ## Run ngs_te_mapper2 on test dataset
