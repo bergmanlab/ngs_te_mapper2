@@ -139,7 +139,5 @@ Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper2/
 # <a name="citation"></a> Citation
 To cite ngs_te_mapper2 in publications, please use:
  
-  Linheiro, R.S. and C.M. Bergman (2012) Whole Genome Resequencing 
-  Reveals Natural Target Site Preferences of Transposable 
-  Elements in Drosophila melanogaster. PLoS ONE 7(2): e30008
-  http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008
+  Han, S., Basting, P. J., Dias, G., Luhur, A., Zelhof, A. C., & Bergman, C. M. (2021). Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture. bioRxiv.
+  https://www.biorxiv.org/content/10.1101/2021.04.24.441253v1.full
