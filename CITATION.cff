@@ -10,6 +10,15 @@ authors:
 - family-names: "Dias"
   given-names: "Guilherme"
   orcid: "https://orcid.org/0000-0002-1459-3148"
+- family-names: "Luhur"
+  given-names: "Arthur"
+  orcid: "https://orcid.org/0000-0001-5249-6587"
+- family-names: "Zelhof"
+  given-names: "Andrew"
+  orcid: "https://orcid.org/0000-0001-7085-822X"
+- family-names: "Bergman"
+  given-names: "Casey"
+  orcid: "https://orcid.org/0000-0002-5462-9854"
 title: "Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture"
 version: 1.0.2
 doi: 10.1093/genetics/iyab113
