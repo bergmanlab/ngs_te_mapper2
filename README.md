@@ -139,5 +139,5 @@ Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper2/
 # <a name="citation"></a> Citation
 To cite ngs_te_mapper2 in publications, please use:
  
-  Han, S., Basting, P. J., Dias, G., Luhur, A., Zelhof, A. C., & Bergman, C. M. (2021). Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture. bioRxiv.
-  https://www.biorxiv.org/content/10.1101/2021.04.24.441253v1.full
+  Shunhua Han, Preston J Basting, Guilherme B Dias, Arthur Luhur, Andrew C Zelhof, Casey M Bergman, Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture, Genetics, 2021
+  https://doi.org/10.1093/genetics/iyab113
