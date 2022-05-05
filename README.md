@@ -6,7 +6,7 @@
 * [Usage](#run)
 * [Output](#output)
 * [Getting help](#help)
-* [License](#license)
+* [Citation](#citation)
 
 # <a name="intro"></a> Introduction
 ngs_te_mapper2 is a re-implementation of the method for detecting transposable element (TE) insertions from next-generation sequencing (NGS) data originally described in [Linheiro and Bergman (2012) PLoS ONE 7(2): e30008](http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008). ngs_te_mapper2 uses a three-stage procedure to annotate non-reference TEs as the span of target site duplication (TSD), following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](https://www.tandfonline.com/doi/full/10.4161/mge.19479).
