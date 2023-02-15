@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Han"
+    given-names: "Shunhua"
+    orcid: "https://orcid.org/0000-0002-8605-7547"  
+  - family-names: "Bergman"
+    given-names: "Casey M."
+    orcid: "https://orcid.org/0000-0002-5462-9854"  
+title: "ngs_te_mapper2: A program to identify transposable element insertions using next generation sequencing data"
+version: 2
+date-released: 2020-12-01
+url: "https://github.com/bergmanlab/ngs_te_mapper2"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Han"
+    given-names: "Shunhua"
+    orcid: "https://orcid.org/0000-0002-8605-7547"
+  - family-names: "Basting"
+    given-names: "Preston J."
+    orcid: "https://orcid.org/0000-0001-9290-8339"
+  - family-names: "Dias"
+    given-names: "Guilherme B."
+    orcid: "https://orcid.org/0000-0002-1459-3148"  
+  - family-names: "Luhur"
+    given-names: "Arthur"
+    orcid: "https://orcid.org/0000-0001-5249-6587"
+  - family-names: "Zelhof"
+    given-names: "Andrew C."
+    orcid: "https://orcid.org/0000-0001-7085-822X"        
+  - family-names: "Bergman"
+    given-names: "Casey M."
+    orcid: "https://orcid.org/0000-0002-5462-9854"                
+  doi: "10.1093/genetics/iyab113" 
+  journal: "Genetics"
+  volume: 219
+  issue: 2
+  start: iyab113
+  month: 10
+  title: "Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture"
+  year: 2021
