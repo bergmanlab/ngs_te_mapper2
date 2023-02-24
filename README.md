@@ -9,7 +9,7 @@
 * [Citation](#citation)
 
 # <a name="intro"></a> Introduction
-ngs_te_mapper2 is a re-implementation of the method for detecting transposable element (TE) insertions from next-generation sequencing (NGS) data originally described in [Linheiro and Bergman (2012) PLoS ONE 7(2): e30008](http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008). ngs_te_mapper2 uses a three-stage procedure to annotate non-reference TEs as the span of target site duplication (TSD), following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](https://www.tandfonline.com/doi/full/10.4161/mge.19479).
+**ngs_te_mapper2** is a method for detecting transposable element (TE) insertions from short-read next-generation sequencing (NGS) data described in [Han et al. (2021) Genetics 219(2):iyab113](https://academic.oup.com/genetics/article/219/2/iyab113/6321957). **ngs_te_mapper2** is a Python re-implementation of the [ngs_te_mapper](https://github.com/bergmanlab/ngs_te_mapper) method originally described in [Linheiro and Bergman (2012) PLoS ONE 7(2): e30008](http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0030008). **ngs_te_mapper2** uses a three-stage procedure to annotate non-reference TEs as the span of target site duplication (TSD), following the framework described in [Bergman (2012) Mob Genet Elements. 2:51-54](https://www.tandfonline.com/doi/full/10.4161/mge.19479).
 
 <p align="center">
 <img src="https://raw.githubusercontent.com/bergmanlab/ngs_te_mapper2/master/img/ngs_te_mapper2.png?raw=true"/>
@@ -139,5 +139,4 @@ Please use the [Github Issue page](https://github.com/bergmanlab/ngs_te_mapper2/
 # <a name="citation"></a> Citation
 To cite ngs_te_mapper2 in publications, please use:
  
-  Shunhua Han, Preston J Basting, Guilherme B Dias, Arthur Luhur, Andrew C Zelhof, Casey M Bergman, Transposable element profiles reveal cell line identity and loss of heterozygosity in Drosophila cell culture, Genetics, 2021
-  https://doi.org/10.1093/genetics/iyab113
+S. Han, P.J. Basting, G.B. Dias, A. Luhur, A.C. Zelhof, C.M. Bergman (2021) Transposable element profiles reveal cell line identity and loss of heterozygosity in *Drosophila* cell culture. [Genetics 219(2):iyab113](https://doi.org/10.1093/genetics/iyab113)
